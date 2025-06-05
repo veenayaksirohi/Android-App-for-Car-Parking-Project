@@ -1,119 +1,63 @@
-name: Run Android App for 1 Minute (Alternative)
+name: Run Android App for 1 Minute
+
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   run-app:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
-    
+    timeout-minutes: 15
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
           distribution: 'temurin'
-          
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-            
+          java-version: '17'
+
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-        
-      - name: Extract package info
+        run: chmod +x ./gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Extract package name
+        id: extract_package
         run: |
-          # Extract package name
-          if [ -f "app/build.gradle.kts" ]; then
-            PACKAGE_NAME=$(grep -E 'applicationId\s*=' app/build.gradle.kts | sed -E 's/.*applicationId\s*=\s*"([^"]+)".*/\1/' | head -1)
-          elif [ -f "app/build.gradle" ]; then
-            PACKAGE_NAME=$(grep -E 'applicationId\s+' app/build.gradle | sed -E 's/.*applicationId\s+"([^"]+)".*/\1/' | head -1)
-          fi
-          
-          if [ -z "$PACKAGE_NAME" ]; then
-            PACKAGE_NAME="com.example.carparkingapp"
-          fi
-          
+          PACKAGE_NAME=$(grep -oP 'applicationId\s+"[^"]+"' app/build.gradle | cut -d'"' -f2)
           echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
-          echo "📱 Package: $PACKAGE_NAME"
-        
-      - name: Run tests with Android Emulator
+
+      - name: Run app on Android Emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 28
-          target: google_apis
+          target: default
           arch: x86_64
-          profile: Nexus 5X
-          cores: 2
-          ram-size: 2048M
-          heap-size: 512M
+          profile: Nexus 2
           disable-animations: true
           disable-spellchecker: true
-          disable-linux-hw-accel: false
-          emulator-options: -no-window -no-audio -no-boot-anim -camera-back none -camera-front none -qemu -m 2048
+          disable-linux-hw-accel: true
+          emulator-options: -no-window -no-audio -no-boot-anim
           script: |
-            echo "🚀 Emulator started successfully!"
-            
-            # Build and install APK
-            ./gradlew assembleDebug
+            echo "Waiting for emulator to boot…"
+            adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;'
+            echo "Emulator booted."
+
+            echo "Installing APK…"
             adb install app/build/outputs/apk/debug/app-debug.apk
-            
-            echo "📱 Package: $PACKAGE_NAME"
-            
-            # Launch app
+
+            echo "Launching app…"
             adb shell am start -n "$PACKAGE_NAME/.MainActivity" -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
-            
-            # Verify app launched
-            sleep 3
-            if adb shell pidof "$PACKAGE_NAME" > /dev/null; then
-              echo "✅ App launched successfully"
-            else
-              echo "⚠️ Trying alternative launch method..."
-              adb shell monkey -p "$PACKAGE_NAME" -c android.intent.category.LAUNCHER 1
-              sleep 2
-            fi
-            
-            # Run for 60 seconds
-            echo "⏱️ Running app for 60 seconds..."
-            start_time=$(date +%s)
-            
-            while true; do
-              current_time=$(date +%s)
-              elapsed=$((current_time - start_time))
-              
-              if [ $elapsed -ge 60 ]; then
-                echo "✅ App completed 60-second run!"
-                break
-              fi
-              
-              # Health check every 15 seconds
-              if [ $((elapsed % 15)) -eq 0 ] && [ $elapsed -gt 0 ]; then
-                if adb shell pidof "$PACKAGE_NAME" > /dev/null; then
-                  echo "📱 App running... ${elapsed}s/60s"
-                  # Light interaction
-                  adb shell input tap 400 600 || true
-                else
-                  echo "💥 App crashed at ${elapsed}s"
-                  adb logcat -d | grep -E "(FATAL|AndroidRuntime|$PACKAGE_NAME)" | tail -5
-                  break
-                fi
-              fi
-              
-              sleep 1
-            done
-            
-            # Stop app
+
+            echo "Running app for 60 seconds…"
+            sleep 60
+
+            echo "Stopping app…"
             adb shell am force-stop "$PACKAGE_NAME"
-            echo "✅ Test completed successfully!"

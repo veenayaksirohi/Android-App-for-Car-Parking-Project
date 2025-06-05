@@ -8,7 +8,7 @@ on:
 jobs:
   run-app:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     
     steps:
       - name: Checkout code
@@ -34,97 +34,141 @@ jobs:
       - name: Build APK
         run: ./gradlew assembleDebug
         
-      - name: Create AVD
+      - name: Enable KVM acceleration
         run: |
-          sdkmanager "system-images;android-30;google_apis;x86_64"
-          echo "no" | avdmanager create avd -n test_device -k "system-images;android-30;google_apis;x86_64" --force
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
           
-      - name: Start emulator
+      - name: Create lightweight AVD
+        run: |
+          # Use Android 28 (faster boot) with minimal Google APIs
+          sdkmanager "system-images;android-28;default;x86_64"
+          echo "no" | avdmanager create avd -n test_device -k "system-images;android-28;default;x86_64" \
+            --device "pixel_2" --force
+          
+      - name: Start emulator with maximum speed optimization
         run: |
           export ANDROID_HOME=$ANDROID_SDK_ROOT
           export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
           
+          # Start emulator with aggressive speed optimizations
           $ANDROID_HOME/emulator/emulator -avd test_device \
             -no-window \
             -no-audio \
             -no-boot-anim \
-            -no-snapshot-save \
-            -no-snapshot-load \
-            -memory 2048 \
+            -no-snapshot \
+            -no-skin \
+            -camera-back none \
+            -camera-front none \
+            -memory 1536 \
+            -partition-size 512 \
             -cores 2 \
-            -gpu swiftshader_indirect &
+            -accel on \
+            -gpu swiftshader_indirect \
+            -netdelay none \
+            -netspeed full \
+            -qemu -m 1536 &
             
-          echo "Emulator started"
+          echo "Emulator started with PID: $!"
           
-      - name: Wait for emulator
+      - name: Wait for emulator (60s timeout)
+        timeout-minutes: 1
         run: |
-          echo "Waiting for emulator to boot..."
-          timeout 120s adb wait-for-device
+          echo "Waiting for emulator to boot (60s max)..."
           
-          for i in {1..24}; do
-            boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
-            if [ "$boot_completed" = "1" ]; then
-              echo "✓ Emulator ready"
+          # Wait for ADB connection
+          timeout 45s bash -c 'until adb devices | grep -q "emulator.*device"; do sleep 2; done'
+          
+          echo "ADB connected, waiting for boot..."
+          
+          # Wait for boot completion with shorter intervals
+          for i in {1..15}; do
+            boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || echo "0")
+            animator_duration=$(adb shell settings get global animator_duration_scale 2>/dev/null || echo "1.0")
+            
+            if [ "$boot_completed" = "1" ] && [ "$animator_duration" != "null" ]; then
+              echo "✅ Emulator ready in $((i*3)) seconds"
+              
+              # Disable animations for faster interaction
+              adb shell settings put global window_animation_scale 0
+              adb shell settings put global transition_animation_scale 0
+              adb shell settings put global animator_duration_scale 0
+              
+              # Unlock screen
+              adb shell input keyevent 82
+              sleep 1
               break
             fi
             
-            if [ $i -eq 24 ]; then
-              echo "❌ Emulator boot timeout"
+            if [ $i -eq 15 ]; then
+              echo "❌ Emulator boot timeout after 45 seconds"
+              adb devices -l
+              adb shell getprop | grep boot
               exit 1
             fi
             
-            echo "Waiting... ($i/24)"
-            sleep 5
+            echo "Boot check $i/15..."
+            sleep 3
           done
           
       - name: Install and run app for 1 minute
+        timeout-minutes: 2
         run: |
-          # Install the APK
-          adb install app/build/outputs/apk/debug/app-debug.apk
+          # Build and install APK faster
+          adb install -r app/build/outputs/apk/debug/app-debug.apk
           
-          # Get package name from AndroidManifest.xml or use your package name
-          PACKAGE_NAME=$(aapt dump badging app/build/outputs/apk/debug/app-debug.apk | grep package | awk '{print $2}' | sed "s/name='\(.*\)'/\1/")
-          MAIN_ACTIVITY=$(aapt dump badging app/build/outputs/apk/debug/app-debug.apk | grep launchable-activity | awk '{print $2}' | sed "s/name='\(.*\)'/\1/")
+          # Extract package info more efficiently
+          PACKAGE_NAME=$(aapt dump badging app/build/outputs/apk/debug/app-debug.apk | head -1 | sed -n "s/.*name='\([^']*\)'.*/\1/p")
+          MAIN_ACTIVITY=$(aapt dump badging app/build/outputs/apk/debug/app-debug.apk | grep "launchable-activity" | sed -n "s/.*name='\([^']*\)'.*/\1/p")
           
-          echo "Package: $PACKAGE_NAME"
-          echo "Main Activity: $MAIN_ACTIVITY"
+          echo "📱 Package: $PACKAGE_NAME"
+          echo "🚀 Activity: $MAIN_ACTIVITY"
           
-          # Launch the app
-          echo "🚀 Launching app..."
-          adb shell am start -n "$PACKAGE_NAME/$MAIN_ACTIVITY"
+          # Clear any previous app data and launch
+          adb shell pm clear "$PACKAGE_NAME" 2>/dev/null || true
+          adb shell am start -W -n "$PACKAGE_NAME/$MAIN_ACTIVITY"
           
-          # Wait a moment for app to start
-          sleep 3
-          
-          # Verify app is running
+          # Quick verification
+          sleep 2
           if adb shell pidof "$PACKAGE_NAME" > /dev/null; then
-            echo "✅ App is running"
+            echo "✅ App launched successfully"
           else
-            echo "❌ App failed to start"
+            echo "❌ App launch failed"
+            adb logcat -d | tail -20
             exit 1
           fi
           
-          # Keep app running for exactly 60 seconds
+          # Run for exactly 60 seconds with minimal overhead
           echo "⏱️  Running app for 60 seconds..."
+          start_time=$(date +%s)
           
-          for i in {1..12}; do
-            sleep 5
-            elapsed=$((i * 5))
-            echo "App running... ${elapsed}s/60s"
+          while true; do
+            current_time=$(date +%s)
+            elapsed=$((current_time - start_time))
             
-            # Check if app is still running
-            if ! adb shell pidof "$PACKAGE_NAME" > /dev/null; then
-              echo "⚠️  App stopped at ${elapsed}s"
+            if [ $elapsed -ge 60 ]; then
+              echo "✅ App completed 60-second run"
               break
             fi
             
-            # Simulate user interaction to keep app active
-            if [ $((i % 3)) -eq 0 ]; then
-              adb shell input tap 500 1000  # Random tap
+            # Check app health every 10 seconds
+            if [ $((elapsed % 10)) -eq 0 ] && [ $elapsed -gt 0 ]; then
+              if adb shell pidof "$PACKAGE_NAME" > /dev/null; then
+                echo "📱 App running... ${elapsed}s/60s"
+                # Light interaction every 15 seconds
+                if [ $((elapsed % 15)) -eq 0 ]; then
+                  adb shell input tap 400 800 &
+                fi
+              else
+                echo "⚠️  App crashed at ${elapsed}s"
+                adb logcat -d | tail -10
+                break
+              fi
             fi
+            
+            sleep 1
           done
-          
-          echo "✅ App ran for 60 seconds"
           
       - name: Stop app
         run: |

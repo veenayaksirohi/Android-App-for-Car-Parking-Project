@@ -82,33 +82,43 @@ jobs:
           
           echo "ADB connected, waiting for boot..."
           
-          # Wait for boot completion with shorter intervals
+          # Wait for boot completion - simplified check
           for i in {1..15}; do
-            boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || echo "0")
-            animator_duration=$(adb shell settings get global animator_duration_scale 2>/dev/null || echo "1.0")
+            # Check multiple boot indicators
+            boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r\n ' || echo "0")
+            dev_bootcomplete=$(adb shell getprop dev.bootcomplete 2>/dev/null | tr -d '\r\n ' || echo "0")
             
-            if [ "$boot_completed" = "1" ] && [ "$animator_duration" != "null" ]; then
-              echo "✅ Emulator ready in $((i*3)) seconds"
+            echo "Boot check $i/15... sys.boot_completed=$boot_completed, dev.bootcomplete=$dev_bootcomplete"
+            
+            # Check if either boot indicator shows completion
+            if [ "$boot_completed" = "1" ] || [ "$dev_bootcomplete" = "1" ]; then
+              echo "✅ Emulator ready! Boot completed in $((i*3)) seconds"
+              
+              # Give emulator a moment to stabilize
+              sleep 2
               
               # Disable animations for faster interaction
-              adb shell settings put global window_animation_scale 0
-              adb shell settings put global transition_animation_scale 0
-              adb shell settings put global animator_duration_scale 0
+              adb shell settings put global window_animation_scale 0 2>/dev/null || true
+              adb shell settings put global transition_animation_scale 0 2>/dev/null || true  
+              adb shell settings put global animator_duration_scale 0 2>/dev/null || true
               
-              # Unlock screen
-              adb shell input keyevent 82
-              sleep 1
+              # Unlock screen and dismiss any dialogs
+              adb shell input keyevent 82 2>/dev/null || true
+              adb shell input keyevent 4 2>/dev/null || true
+              
+              echo "✅ Emulator setup complete"
               break
             fi
             
             if [ $i -eq 15 ]; then
               echo "❌ Emulator boot timeout after 45 seconds"
+              echo "Debug info:"
               adb devices -l
-              adb shell getprop | grep boot
+              echo "Boot properties:"
+              adb shell getprop | grep -E "(boot|init)" | head -10
               exit 1
             fi
             
-            echo "Boot check $i/15..."
             sleep 3
           done
           

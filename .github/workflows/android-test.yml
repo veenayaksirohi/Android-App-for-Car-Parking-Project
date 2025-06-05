@@ -28,6 +28,11 @@ jobs:
           platform-version: '34'
           accept-licenses: true
           
+      - name: Add build tools to PATH
+        run: |
+          echo "$ANDROID_SDK_ROOT/build-tools/34.0.0" >> $GITHUB_PATH
+          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
+          
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
         
@@ -128,24 +133,81 @@ jobs:
           # Build and install APK faster
           adb install -r app/build/outputs/apk/debug/app-debug.apk
           
-          # Extract package info more efficiently
-          PACKAGE_NAME=$(aapt dump badging app/build/outputs/apk/debug/app-debug.apk | head -1 | sed -n "s/.*name='\([^']*\)'.*/\1/p")
-          MAIN_ACTIVITY=$(aapt dump badging app/build/outputs/apk/debug/app-debug.apk | grep "launchable-activity" | sed -n "s/.*name='\([^']*\)'.*/\1/p")
+          # Extract package info using multiple methods
+          APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
           
-          echo "📱 Package: $PACKAGE_NAME"
-          echo "🚀 Activity: $MAIN_ACTIVITY"
+          # Method 1: Try aapt2 first (newer)
+          if command -v aapt2 >/dev/null 2>&1; then
+            echo "Using aapt2..."
+            PACKAGE_NAME=$(aapt2 dump badging "$APK_PATH" 2>/dev/null | grep "^package:" | sed -n "s/.*name='\([^']*\)'.*/\1/p")
+            MAIN_ACTIVITY=$(aapt2 dump badging "$APK_PATH" 2>/dev/null | grep "launchable-activity:" | sed -n "s/.*name='\([^']*\)'.*/\1/p")
+          # Method 2: Try aapt
+          elif command -v aapt >/dev/null 2>&1; then
+            echo "Using aapt..."
+            PACKAGE_NAME=$(aapt dump badging "$APK_PATH" 2>/dev/null | grep "^package:" | sed -n "s/.*name='\([^']*\)'.*/\1/p")
+            MAIN_ACTIVITY=$(aapt dump badging "$APK_PATH" 2>/dev/null | grep "launchable-activity:" | sed -n "s/.*name='\([^']*\)'.*/\1/p")
+          # Method 3: Use ADB to get package info after install
+          else
+            echo "Using ADB method..."
+            # Get the most recently installed package
+            PACKAGE_NAME=$(adb shell pm list packages -3 | tail -1 | cut -d: -f2 | tr -d '\r\n')
+            # Get launchable activity
+            MAIN_ACTIVITY=$(adb shell cmd package resolve-activity --brief "$PACKAGE_NAME" | tail -1 | tr -d '\r\n')
+          fi
+          
+          # Fallback: Use common Android package structure
+          if [ -z "$PACKAGE_NAME" ] || [ -z "$MAIN_ACTIVITY" ]; then
+            echo "Using fallback method..."
+            # Try to find from build.gradle or AndroidManifest.xml
+            if [ -f "app/build.gradle" ]; then
+              PACKAGE_NAME=$(grep "applicationId" app/build.gradle | sed -n 's/.*applicationId[[:space:]]*["'\'']\([^"'\'']*\)["'\''].*/\1/p' | head -1)
+            fi
+            
+            # Default main activity pattern
+            if [ -n "$PACKAGE_NAME" ] && [ -z "$MAIN_ACTIVITY" ]; then
+              MAIN_ACTIVITY="${PACKAGE_NAME}.MainActivity"
+            fi
+          fi
+          
+          echo "📱 Package: '$PACKAGE_NAME'"
+          echo "🚀 Activity: '$MAIN_ACTIVITY'"
+          
+          # Validate we have both values
+          if [ -z "$PACKAGE_NAME" ] || [ -z "$MAIN_ACTIVITY" ]; then
+            echo "❌ Could not determine package name or main activity"
+            echo "Package name: '$PACKAGE_NAME'"
+            echo "Main activity: '$MAIN_ACTIVITY'"
+            echo "Listing installed packages:"
+            adb shell pm list packages -3
+            exit 1
+          fi
           
           # Clear any previous app data and launch
           adb shell pm clear "$PACKAGE_NAME" 2>/dev/null || true
-          adb shell am start -W -n "$PACKAGE_NAME/$MAIN_ACTIVITY"
+          
+          # Launch the app with error handling
+          echo "🚀 Launching $PACKAGE_NAME/$MAIN_ACTIVITY..."
+          if ! adb shell am start -W -n "$PACKAGE_NAME/$MAIN_ACTIVITY"; then
+            echo "❌ Failed to launch with full activity name, trying alternatives..."
+            
+            # Try different activity name formats
+            for activity_suffix in "MainActivity" ".MainActivity" ".ui.MainActivity" ".activities.MainActivity"; do
+              echo "Trying: $PACKAGE_NAME/$activity_suffix"
+              if adb shell am start -W -n "$PACKAGE_NAME/$activity_suffix" 2>/dev/null; then
+                MAIN_ACTIVITY="$activity_suffix"
+                echo "✅ Launched with: $MAIN_ACTIVITY"
+                break
+              fi
+            done
+          fi
           
           # Quick verification
-          sleep 2
+          sleep 3
           if adb shell pidof "$PACKAGE_NAME" > /dev/null; then
             echo "✅ App launched successfully"
           else
-            echo "❌ App launch failed"
-            adb logcat -d | tail -20
+            echo "❌ App launch failed, checking logs..."
+            adb logcat -d | grep -E "(FATAL|AndroidRuntime|$PACKAGE_NAME)" | tail -10
             exit 1
           fi
           
@@ -168,11 +230,11 @@ jobs:
                 echo "📱 App running... ${elapsed}s/60s"
                 # Light interaction every 15 seconds
                 if [ $((elapsed % 15)) -eq 0 ]; then
-                  adb shell input tap 400 800 &
+                  adb shell input tap 400 800 2>/dev/null &
                 fi
               else
                 echo "⚠️  App crashed at ${elapsed}s"
-                adb logcat -d | tail -10
+                adb logcat -d | grep -E "(FATAL|AndroidRuntime|$PACKAGE_NAME)" | tail -5
                 break
               fi
             fi

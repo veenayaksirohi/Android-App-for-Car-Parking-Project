@@ -115,9 +115,10 @@ jobs:
             adb shell getprop | grep -E "init.svc.bootanim|sys.boot_completed"
             
             echo "Step 5: Disabling animations..."
-            adb shell settings put global window_animation_scale 0
-            adb shell settings put global transition_animation_scale 0
-            adb shell settings put global animator_duration_scale 0
+            # Try to disable animations without root
+            adb shell "settings put global window_animation_scale 0" || true
+            adb shell "settings put global transition_animation_scale 0" || true
+            adb shell "settings put global animator_duration_scale 0" || true
             
             echo "Step 6: Waiting for boot completion..."
             stuck_count=0
@@ -140,9 +141,11 @@ jobs:
                 stuck_count=$((stuck_count + 1))
                 if [ $stuck_count -ge 3 ]; then
                   echo "Boot appears to be stuck. Attempting recovery..."
-                  adb shell stop
-                  sleep 2
-                  adb shell start
+                  # Instead of stop/start, try to force a reboot
+                  adb reboot || true
+                  sleep 10
+                  # Wait for device to come back
+                  adb wait-for-device
                   stuck_count=0
                 fi
               else

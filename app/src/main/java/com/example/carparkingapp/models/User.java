@@ -1,10 +1,8 @@
-package com.example.carparkingapp.register;
+package com.example.carparkingapp.models;
 
-import androidx.annotation.NonNull;
 import com.google.gson.annotations.SerializedName;
 
 public class User {
-
     @SerializedName("user_name")
     private String userName;
 
@@ -68,7 +66,6 @@ public class User {
         this.userAddress = userAddress;
     }
 
-    @NonNull
     @Override
     public String toString() {
         return "User{" +

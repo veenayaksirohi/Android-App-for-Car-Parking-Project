@@ -9,8 +9,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.example.carparkingapp.google_map.DashboardActivity;
-import com.example.carparkingapp.register.RegisterActivity;
+import com.example.carparkingapp.features.maps.DashboardActivity;
+import com.example.carparkingapp.features.auth.register.RegisterActivity;
 
 public class MainActivity extends AppCompatActivity {
 

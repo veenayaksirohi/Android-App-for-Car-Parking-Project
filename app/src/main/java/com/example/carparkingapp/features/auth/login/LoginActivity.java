@@ -1,4 +1,4 @@
-package com.example.carparkingapp.login;
+package com.example.carparkingapp.features.auth.login;
 
 import android.content.Intent;
 import android.os.Bundle;

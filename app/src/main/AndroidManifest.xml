@@ -24,16 +24,14 @@
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="@string/my_api_google_map_api_key" />
-
-        <activity
-            android:name=".google_map.DashboardActivity"
+            android:value="@string/my_api_google_map_api_key" />        <activity
+            android:name=".features.maps.DashboardActivity"
             android:exported="false" />
         <activity
-            android:name=".login.LoginActivity"
+            android:name=".features.auth.login.LoginActivity"
             android:exported="false" />
         <activity
-            android:name=".register.RegisterActivity"
+            android:name=".features.auth.register.RegisterActivity"
             android:exported="false" />
         <activity
             android:name=".MainActivity"

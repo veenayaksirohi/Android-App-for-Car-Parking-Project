@@ -1,4 +1,4 @@
-package com.example.carparkingapp.register;
+package com.example.carparkingapp.features.auth.register;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;

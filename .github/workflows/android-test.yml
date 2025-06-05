@@ -8,7 +8,7 @@ on:
 jobs:
   run-app:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     
     steps:
       - name: Checkout code
@@ -28,16 +28,27 @@ jobs:
           platform-version: '34'
           accept-licenses: true
           
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+            
       - name: Add build tools to PATH
         run: |
           echo "$ANDROID_SDK_ROOT/build-tools/34.0.0" >> $GITHUB_PATH
           echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
           
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
         
       - name: Build APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
         
       - name: Enable KVM acceleration
         run: |
@@ -47,17 +58,17 @@ jobs:
           
       - name: Create lightweight AVD
         run: |
-          # Use Android 28 (faster boot) with minimal Google APIs
+          # Use Android 28 for faster boot
           sdkmanager "system-images;android-28;default;x86_64"
           echo "no" | avdmanager create avd -n test_device -k "system-images;android-28;default;x86_64" \
             --device "pixel_2" --force
           
-      - name: Start emulator with maximum speed optimization
+      - name: Start emulator
         run: |
           export ANDROID_HOME=$ANDROID_SDK_ROOT
           export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
           
-          # Start emulator with aggressive speed optimizations
+          # Start emulator in background
           $ANDROID_HOME/emulator/emulator -avd test_device \
             -no-window \
             -no-audio \
@@ -66,152 +77,108 @@ jobs:
             -no-skin \
             -camera-back none \
             -camera-front none \
-            -memory 1536 \
+            -memory 2048 \
             -partition-size 512 \
             -cores 2 \
             -accel on \
             -gpu swiftshader_indirect \
             -netdelay none \
-            -netspeed full \
-            -qemu -m 1536 &
+            -netspeed full &
             
-          echo "Emulator started with PID: $!"
+          echo "Emulator started"
           
-      - name: Wait for emulator (60s timeout)
-        timeout-minutes: 1
+      - name: Wait for emulator to boot
+        timeout-minutes: 2
         run: |
-          echo "Waiting for emulator to boot (60s max)..."
+          echo "Waiting for emulator to boot..."
           
           # Wait for ADB connection
-          timeout 45s bash -c 'until adb devices | grep -q "emulator.*device"; do sleep 2; done'
+          timeout 60s bash -c 'until adb devices | grep -q "emulator.*device"; do sleep 2; echo "Waiting for ADB..."; done'
           
-          echo "ADB connected, waiting for boot..."
+          echo "ADB connected, waiting for boot completion..."
           
-          # Wait for boot completion - simplified check
-          for i in {1..15}; do
-            # Check multiple boot indicators
-            boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r\n ' || echo "0")
-            dev_bootcomplete=$(adb shell getprop dev.bootcomplete 2>/dev/null | tr -d '\r\n ' || echo "0")
-            
-            echo "Boot check $i/15... sys.boot_completed=$boot_completed, dev.bootcomplete=$dev_bootcomplete"
-            
-            # Check if either boot indicator shows completion
-            if [ "$boot_completed" = "1" ] || [ "$dev_bootcomplete" = "1" ]; then
-              echo "✅ Emulator ready! Boot completed in $((i*3)) seconds"
-              
-              # Give emulator a moment to stabilize
-              sleep 2
-              
-              # Disable animations for faster interaction
-              adb shell settings put global window_animation_scale 0 2>/dev/null || true
-              adb shell settings put global transition_animation_scale 0 2>/dev/null || true  
-              adb shell settings put global animator_duration_scale 0 2>/dev/null || true
-              
-              # Unlock screen and dismiss any dialogs
-              adb shell input keyevent 82 2>/dev/null || true
-              adb shell input keyevent 4 2>/dev/null || true
-              
-              echo "✅ Emulator setup complete"
-              break
-            fi
-            
-            if [ $i -eq 15 ]; then
-              echo "❌ Emulator boot timeout after 45 seconds"
-              echo "Debug info:"
-              adb devices -l
-              echo "Boot properties:"
-              adb shell getprop | grep -E "(boot|init)" | head -10
-              exit 1
-            fi
-            
-            sleep 3
-          done
+          # Wait for boot completion
+          timeout 60s bash -c 'until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r\n ")" = "1" ]; do sleep 3; echo "Waiting for boot..."; done'
+          
+          echo "✅ Emulator ready!"
+          
+          # Disable animations for faster interaction
+          adb shell settings put global window_animation_scale 0 || true
+          adb shell settings put global transition_animation_scale 0 || true  
+          adb shell settings put global animator_duration_scale 0 || true
+          
+          # Unlock screen
+          adb shell input keyevent 82 || true
+          
+          echo "✅ Emulator setup complete"
+          
+      - name: Extract package info from build files
+        run: |
+          # Extract package name from build.gradle.kts or build.gradle
+          if [ -f "app/build.gradle.kts" ]; then
+            PACKAGE_NAME=$(grep -E 'applicationId\s*=' app/build.gradle.kts | sed -E 's/.*applicationId\s*=\s*"([^"]+)".*/\1/' | head -1)
+          elif [ -f "app/build.gradle" ]; then
+            PACKAGE_NAME=$(grep -E 'applicationId\s+' app/build.gradle | sed -E 's/.*applicationId\s+"([^"]+)".*/\1/' | head -1)
+          fi
+          
+          # Fallback: Extract from AndroidManifest.xml
+          if [ -z "$PACKAGE_NAME" ]; then
+            PACKAGE_NAME=$(grep -E 'package\s*=' app/src/main/AndroidManifest.xml | sed -E 's/.*package\s*=\s*"([^"]+)".*/\1/' | head -1)
+          fi
+          
+          # Final fallback for your specific project
+          if [ -z "$PACKAGE_NAME" ]; then
+            PACKAGE_NAME="com.example.carparkingapp"
+          fi
+          
+          # Main activity is typically MainActivity
+          MAIN_ACTIVITY="${PACKAGE_NAME}.MainActivity"
+          
+          echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+          echo "MAIN_ACTIVITY=$MAIN_ACTIVITY" >> $GITHUB_ENV
+          
+          echo "📱 Package: $PACKAGE_NAME"
+          echo "🚀 Activity: $MAIN_ACTIVITY"
           
       - name: Install and run app for 1 minute
         timeout-minutes: 2
         run: |
-          # Build and install APK faster
+          # Install APK
           adb install -r app/build/outputs/apk/debug/app-debug.apk
           
-          # Extract package info using multiple methods
-          APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+          echo "📱 Package: $PACKAGE_NAME"
+          echo "🚀 Activity: $MAIN_ACTIVITY"
           
-          # Method 1: Try aapt2 first (newer)
-          if command -v aapt2 >/dev/null 2>&1; then
-            echo "Using aapt2..."
-            PACKAGE_NAME=$(aapt2 dump badging "$APK_PATH" 2>/dev/null | grep "^package:" | sed -n "s/.*name='\([^']*\)'.*/\1/p")
-            MAIN_ACTIVITY=$(aapt2 dump badging "$APK_PATH" 2>/dev/null | grep "launchable-activity:" | sed -n "s/.*name='\([^']*\)'.*/\1/p")
-          # Method 2: Try aapt
-          elif command -v aapt >/dev/null 2>&1; then
-            echo "Using aapt..."
-            PACKAGE_NAME=$(aapt dump badging "$APK_PATH" 2>/dev/null | grep "^package:" | sed -n "s/.*name='\([^']*\)'.*/\1/p")
-            MAIN_ACTIVITY=$(aapt dump badging "$APK_PATH" 2>/dev/null | grep "launchable-activity:" | sed -n "s/.*name='\([^']*\)'.*/\1/p")
-          # Method 3: Use ADB to get package info after install
-          else
-            echo "Using ADB method..."
-            # Get the most recently installed package
-            PACKAGE_NAME=$(adb shell pm list packages -3 | tail -1 | cut -d: -f2 | tr -d '\r\n')
-            # Get launchable activity
-            MAIN_ACTIVITY=$(adb shell cmd package resolve-activity --brief "$PACKAGE_NAME" | tail -1 | tr -d '\r\n')
-          fi
+          # Clear any previous app data
+          adb shell pm clear "$PACKAGE_NAME" || true
           
-          # Fallback: Use common Android package structure
-          if [ -z "$PACKAGE_NAME" ] || [ -z "$MAIN_ACTIVITY" ]; then
-            echo "Using fallback method..."
-            # Try to find from build.gradle or AndroidManifest.xml
-            if [ -f "app/build.gradle" ]; then
-              PACKAGE_NAME=$(grep "applicationId" app/build.gradle | sed -n 's/.*applicationId[[:space:]]*["'\'']\([^"'\'']*\)["'\''].*/\1/p' | head -1)
-            fi
-            
-            # Default main activity pattern
-            if [ -n "$PACKAGE_NAME" ] && [ -z "$MAIN_ACTIVITY" ]; then
-              MAIN_ACTIVITY="${PACKAGE_NAME}.MainActivity"
-            fi
-          fi
-          
-          echo "📱 Package: '$PACKAGE_NAME'"
-          echo "🚀 Activity: '$MAIN_ACTIVITY'"
-          
-          # Validate we have both values
-          if [ -z "$PACKAGE_NAME" ] || [ -z "$MAIN_ACTIVITY" ]; then
-            echo "❌ Could not determine package name or main activity"
-            echo "Package name: '$PACKAGE_NAME'"
-            echo "Main activity: '$MAIN_ACTIVITY'"
-            echo "Listing installed packages:"
-            adb shell pm list packages -3
-            exit 1
-          fi
-          
-          # Clear any previous app data and launch
-          adb shell pm clear "$PACKAGE_NAME" 2>/dev/null || true
-          
-          # Launch the app with error handling
+          # Launch the app
           echo "🚀 Launching $PACKAGE_NAME/$MAIN_ACTIVITY..."
-          if ! adb shell am start -W -n "$PACKAGE_NAME/$MAIN_ACTIVITY"; then
-            echo "❌ Failed to launch with full activity name, trying alternatives..."
-            
-            # Try different activity name formats
-            for activity_suffix in "MainActivity" ".MainActivity" ".ui.MainActivity" ".activities.MainActivity"; do
-              echo "Trying: $PACKAGE_NAME/$activity_suffix"
-              if adb shell am start -W -n "$PACKAGE_NAME/$activity_suffix" 2>/dev/null; then
-                MAIN_ACTIVITY="$activity_suffix"
-                echo "✅ Launched with: $MAIN_ACTIVITY"
-                break
-              fi
-            done
-          fi
+          adb shell am start -W -n "$PACKAGE_NAME/$MAIN_ACTIVITY"
           
-          # Quick verification
-          sleep 3
+          # Wait a moment for app to start
+          sleep 5
+          
+          # Verify app is running
           if adb shell pidof "$PACKAGE_NAME" > /dev/null; then
             echo "✅ App launched successfully"
           else
-            echo "❌ App launch failed, checking logs..."
-            adb logcat -d | grep -E "(FATAL|AndroidRuntime|$PACKAGE_NAME)" | tail -10
-            exit 1
+            echo "❌ App launch failed, trying alternative launch methods..."
+            
+            # Try launching with intent action
+            adb shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER "$PACKAGE_NAME"
+            sleep 3
+            
+            if adb shell pidof "$PACKAGE_NAME" > /dev/null; then
+              echo "✅ App launched with alternative method"
+            else
+              echo "❌ App launch completely failed, checking logs..."
+              adb logcat -d | grep -E "(FATAL|AndroidRuntime|$PACKAGE_NAME)" | tail -10
+              exit 1
+            fi
           fi
           
-          # Run for exactly 60 seconds with minimal overhead
+          # Run for exactly 60 seconds
           echo "⏱️  Running app for 60 seconds..."
           start_time=$(date +%s)
           
@@ -228,9 +195,9 @@ jobs:
             if [ $((elapsed % 10)) -eq 0 ] && [ $elapsed -gt 0 ]; then
               if adb shell pidof "$PACKAGE_NAME" > /dev/null; then
                 echo "📱 App running... ${elapsed}s/60s"
-                # Light interaction every 15 seconds
-                if [ $((elapsed % 15)) -eq 0 ]; then
-                  adb shell input tap 400 800 2>/dev/null &
+                # Light interaction every 20 seconds
+                if [ $((elapsed % 20)) -eq 0 ]; then
+                  adb shell input tap 400 800 || true
                 fi
               else
                 echo "⚠️  App crashed at ${elapsed}s"
@@ -242,18 +209,22 @@ jobs:
             sleep 1
           done
           
-      - name: Stop app
+      - name: Collect app logs
+        if: always()
         run: |
-          # Get package name again
-          PACKAGE_NAME=$(aapt dump badging app/build/outputs/apk/debug/app-debug.apk | grep package | awk '{print $2}' | sed "s/name='\(.*\)'/\1/")
+          echo "📋 Collecting app logs..."
+          adb logcat -d | grep -E "(FATAL|ERROR|$PACKAGE_NAME)" | tail -20 || true
           
+      - name: Stop app
+        if: always()
+        run: |
           echo "🛑 Stopping app..."
-          adb shell am force-stop "$PACKAGE_NAME"
+          adb shell am force-stop "$PACKAGE_NAME" || true
           echo "App stopped"
           
       - name: Cleanup
         if: always()
         run: |
-          echo "Cleaning up..."
+          echo "🧹 Cleaning up..."
           adb kill-server || true
           pkill -f emulator || true

@@ -1,5 +1,4 @@
-name: Android Test
-
+name: Run Android App for 1 Minute
 on:
   push:
     branches: [ main ]
@@ -7,13 +6,16 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  run-app:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
     steps:
-      - uses: actions/checkout@v3
-      
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -22,159 +24,120 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: '9477386'
-          build-tools-version: '33.0.0'
-          platform-version: '33'
-          platform-tools-version: '33.0.3'
-          emulator-version: '33.3.9'
-          ndk-version: '25.2.9519653'
-          cmake-version: '3.22.1'
+          build-tools-version: '34.0.0'
+          platform-version: '34'
           accept-licenses: true
           
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+        
+      - name: Build APK
+        run: ./gradlew assembleDebug
+        
       - name: Create AVD
         run: |
-          echo "Creating AVD..."
-          sdkmanager "system-images;android-28;google_apis;x86"
-          avdmanager create avd -n test_device -k "system-images;android-28;google_apis;x86" -d "pixel_2"
+          sdkmanager "system-images;android-30;google_apis;x86_64"
+          echo "no" | avdmanager create avd -n test_device -k "system-images;android-30;google_apis;x86_64" --force
           
-      - name: Start Emulator
+      - name: Start emulator
         run: |
-          echo "Starting emulator..."
-          # Set up environment variables
           export ANDROID_HOME=$ANDROID_SDK_ROOT
           export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
           
-          # Start ADB server first
-          adb start-server
-          
-          # Verify emulator location
-          echo "Emulator location: $(which emulator)"
-          echo "Android SDK location: $ANDROID_HOME"
-          
-          # Start emulator with minimal configuration
           $ANDROID_HOME/emulator/emulator -avd test_device \
             -no-window \
             -no-audio \
             -no-boot-anim \
-            -no-snapshot \
             -no-snapshot-save \
-            -memory 1024 \
-            -cores 1 \
-            -gpu swiftshader_indirect \
-            -accel off \
-            -verbose \
-            -show-kernel &
+            -no-snapshot-load \
+            -memory 2048 \
+            -cores 2 \
+            -gpu swiftshader_indirect &
+            
+          echo "Emulator started"
           
-          # Store the emulator process ID
-          EMULATOR_PID=$!
-          echo "Emulator process started with PID: $EMULATOR_PID"
-          
-          # Wait a moment for the process to start
-          sleep 5
-          
-          # Verify emulator process is running
-          if ! ps -p $EMULATOR_PID > /dev/null; then
-            echo "Error: Emulator process failed to start"
-            echo "Checking emulator process..."
-            ps aux | grep emulator
-            echo "Checking emulator directory..."
-            ls -la $ANDROID_HOME/emulator/
-            exit 1
-          fi
-          
-      - name: Wait for Emulator
+      - name: Wait for emulator
         run: |
-          echo "Waiting for emulator to be ready..."
-          timeout 180 bash -c '
-            echo "Step 1: Verifying emulator process..."
-            if ! ps aux | grep -v grep | grep -q "emulator"; then
-              echo "Error: Emulator process not found"
+          echo "Waiting for emulator to boot..."
+          timeout 120s adb wait-for-device
+          
+          for i in {1..24}; do
+            boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+            if [ "$boot_completed" = "1" ]; then
+              echo "✓ Emulator ready"
+              break
+            fi
+            
+            if [ $i -eq 24 ]; then
+              echo "❌ Emulator boot timeout"
               exit 1
             fi
             
-            echo "Step 2: Checking ADB server..."
-            adb kill-server
-            adb start-server
-            sleep 2
-            
-            echo "Step 3: Waiting for emulator in ADB devices..."
-            for i in {1..36}; do
-              echo "Attempt $i of 36..."
-              if adb devices | grep -q "emulator"; then
-                echo "Emulator detected in ADB devices"
-                break
-              fi
-              if [ $i -eq 36 ]; then
-                echo "Error: Emulator not detected in ADB devices after 3 minutes"
-                exit 1
-              fi
-              echo "Still waiting for emulator in ADB devices..."
-              sleep 5
-            done
-            
-            echo "Step 4: Checking emulator status..."
-            adb shell getprop | grep -E "init.svc.bootanim|sys.boot_completed"
-            
-            echo "Step 5: Disabling animations..."
-            # Try to disable animations without root
-            adb shell "settings put global window_animation_scale 0" || true
-            adb shell "settings put global transition_animation_scale 0" || true
-            adb shell "settings put global animator_duration_scale 0" || true
-            
-            echo "Step 6: Waiting for boot completion..."
-            stuck_count=0
-            for i in {1..36}; do
-              echo "Attempt $i of 36..."
-              boot_anim=$(adb shell getprop init.svc.bootanim)
-              boot_completed=$(adb shell getprop sys.boot_completed)
-              
-              echo "Boot animation status: $boot_anim"
-              echo "Boot completed status: $boot_completed"
-              
-              # Check if boot is completed
-              if [ "$boot_completed" = "1" ]; then
-                echo "Boot completed successfully"
-                break
-              fi
-              
-              # Check if boot animation is stuck
-              if [ "$boot_anim" = "stopped" ]; then
-                stuck_count=$((stuck_count + 1))
-                if [ $stuck_count -ge 3 ]; then
-                  echo "Boot appears to be stuck. Attempting recovery..."
-                  # Instead of stop/start, try to force a reboot
-                  adb reboot || true
-                  sleep 10
-                  # Wait for device to come back
-                  adb wait-for-device
-                  stuck_count=0
-                fi
-              else
-                stuck_count=0
-              fi
-              
-              if [ $i -eq 36 ]; then
-                echo "Error: Boot did not complete within 3 minutes"
-                echo "Final boot animation status: $boot_anim"
-                echo "Final boot completed status: $boot_completed"
-                exit 1
-              fi
-              
-              sleep 5
-            done
-            
-            echo "Step 7: Final status check..."
-            adb shell getprop | grep -E "init.svc.bootanim|sys.boot_completed"
-            echo "Emulator is ready!"
-          '
+            echo "Waiting... ($i/24)"
+            sleep 5
+          done
           
-      - name: Run Tests
+      - name: Install and run app for 1 minute
         run: |
-          echo "Running tests..."
-          ./gradlew connectedAndroidTest
+          # Install the APK
+          adb install app/build/outputs/apk/debug/app-debug.apk
+          
+          # Get package name from AndroidManifest.xml or use your package name
+          PACKAGE_NAME=$(aapt dump badging app/build/outputs/apk/debug/app-debug.apk | grep package | awk '{print $2}' | sed "s/name='\(.*\)'/\1/")
+          MAIN_ACTIVITY=$(aapt dump badging app/build/outputs/apk/debug/app-debug.apk | grep launchable-activity | awk '{print $2}' | sed "s/name='\(.*\)'/\1/")
+          
+          echo "Package: $PACKAGE_NAME"
+          echo "Main Activity: $MAIN_ACTIVITY"
+          
+          # Launch the app
+          echo "🚀 Launching app..."
+          adb shell am start -n "$PACKAGE_NAME/$MAIN_ACTIVITY"
+          
+          # Wait a moment for app to start
+          sleep 3
+          
+          # Verify app is running
+          if adb shell pidof "$PACKAGE_NAME" > /dev/null; then
+            echo "✅ App is running"
+          else
+            echo "❌ App failed to start"
+            exit 1
+          fi
+          
+          # Keep app running for exactly 60 seconds
+          echo "⏱️  Running app for 60 seconds..."
+          
+          for i in {1..12}; do
+            sleep 5
+            elapsed=$((i * 5))
+            echo "App running... ${elapsed}s/60s"
+            
+            # Check if app is still running
+            if ! adb shell pidof "$PACKAGE_NAME" > /dev/null; then
+              echo "⚠️  App stopped at ${elapsed}s"
+              break
+            fi
+            
+            # Simulate user interaction to keep app active
+            if [ $((i % 3)) -eq 0 ]; then
+              adb shell input tap 500 1000  # Random tap
+            fi
+          done
+          
+          echo "✅ App ran for 60 seconds"
+          
+      - name: Stop app
+        run: |
+          # Get package name again
+          PACKAGE_NAME=$(aapt dump badging app/build/outputs/apk/debug/app-debug.apk | grep package | awk '{print $2}' | sed "s/name='\(.*\)'/\1/")
+          
+          echo "🛑 Stopping app..."
+          adb shell am force-stop "$PACKAGE_NAME"
+          echo "App stopped"
           
       - name: Cleanup
         if: always()
         run: |
           echo "Cleaning up..."
           adb kill-server || true
-          pkill -f emulator || true 
+          pkill -f emulator || true

@@ -39,6 +39,10 @@ jobs:
       - name: Start Emulator
         run: |
           echo "Starting emulator..."
+          # Start ADB server first
+          adb start-server
+          
+          # Start emulator with minimal configuration
           emulator -avd test_device \
             -no-window \
             -no-audio \
@@ -50,24 +54,46 @@ jobs:
             -gpu swiftshader_indirect \
             -accel off \
             -verbose \
-            -show-kernel \
-            -qemu -enable-kvm &
+            -show-kernel &
+          
+          # Store the emulator process ID
+          EMULATOR_PID=$!
+          echo "Emulator process started with PID: $EMULATOR_PID"
+          
+          # Wait a moment for the process to start
+          sleep 5
+          
+          # Verify emulator process is running
+          if ! ps -p $EMULATOR_PID > /dev/null; then
+            echo "Error: Emulator process failed to start"
+            exit 1
+          fi
           
       - name: Wait for Emulator
         run: |
           echo "Waiting for emulator to be ready..."
           timeout 180 bash -c '
-            echo "Step 1: Checking for emulator process..."
-            ps aux | grep emulator
+            echo "Step 1: Verifying emulator process..."
+            if ! ps aux | grep -v grep | grep -q "emulator"; then
+              echo "Error: Emulator process not found"
+              exit 1
+            fi
             
-            echo "Step 2: Checking ADB devices..."
-            adb devices -l
+            echo "Step 2: Checking ADB server..."
+            adb kill-server
+            adb start-server
+            sleep 2
             
-            echo "Step 3: Waiting for emulator to be detected..."
-            while true; do
+            echo "Step 3: Waiting for emulator in ADB devices..."
+            for i in {1..36}; do
+              echo "Attempt $i of 36..."
               if adb devices | grep -q "emulator"; then
                 echo "Emulator detected in ADB devices"
                 break
+              fi
+              if [ $i -eq 36 ]; then
+                echo "Error: Emulator not detected in ADB devices after 3 minutes"
+                exit 1
               fi
               echo "Still waiting for emulator in ADB devices..."
               sleep 5
@@ -82,7 +108,16 @@ jobs:
             adb shell settings put global animator_duration_scale 0
             
             echo "Step 6: Waiting for boot completion..."
-            while [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" != "1" ]; do
+            for i in {1..36}; do
+              echo "Attempt $i of 36..."
+              if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+                echo "Boot completed successfully"
+                break
+              fi
+              if [ $i -eq 36 ]; then
+                echo "Error: Boot did not complete within 3 minutes"
+                exit 1
+              fi
               echo "Boot animation status: $(adb shell getprop init.svc.bootanim)"
               echo "Boot completed status: $(adb shell getprop sys.boot_completed)"
               sleep 5
@@ -102,4 +137,5 @@ jobs:
         if: always()
         run: |
           echo "Cleaning up..."
-          adb emu kill 
+          adb kill-server || true
+          pkill -f emulator || true 

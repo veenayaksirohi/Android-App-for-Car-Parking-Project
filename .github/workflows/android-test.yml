@@ -120,18 +120,42 @@ jobs:
             adb shell settings put global animator_duration_scale 0
             
             echo "Step 6: Waiting for boot completion..."
+            stuck_count=0
             for i in {1..36}; do
               echo "Attempt $i of 36..."
-              if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+              boot_anim=$(adb shell getprop init.svc.bootanim)
+              boot_completed=$(adb shell getprop sys.boot_completed)
+              
+              echo "Boot animation status: $boot_anim"
+              echo "Boot completed status: $boot_completed"
+              
+              # Check if boot is completed
+              if [ "$boot_completed" = "1" ]; then
                 echo "Boot completed successfully"
                 break
               fi
+              
+              # Check if boot animation is stuck
+              if [ "$boot_anim" = "stopped" ]; then
+                stuck_count=$((stuck_count + 1))
+                if [ $stuck_count -ge 3 ]; then
+                  echo "Boot appears to be stuck. Attempting recovery..."
+                  adb shell stop
+                  sleep 2
+                  adb shell start
+                  stuck_count=0
+                fi
+              else
+                stuck_count=0
+              fi
+              
               if [ $i -eq 36 ]; then
                 echo "Error: Boot did not complete within 3 minutes"
+                echo "Final boot animation status: $boot_anim"
+                echo "Final boot completed status: $boot_completed"
                 exit 1
               fi
-              echo "Boot animation status: $(adb shell getprop init.svc.bootanim)"
-              echo "Boot completed status: $(adb shell getprop sys.boot_completed)"
+              
               sleep 5
             done
             

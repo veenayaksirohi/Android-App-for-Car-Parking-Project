@@ -30,18 +30,26 @@ jobs:
       with:
         api-level: 28
         target: google_apis
-        arch: x86_64
+        arch: x86
         profile: pixel_2
+        avd-name: test-device
+        emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
         script: |
-          echo "Waiting for emulator to boot..."
+          echo "Starting emulator..."
           adb wait-for-device
-          echo "Emulator booted successfully"
+          echo "Emulator started successfully"
 
     - name: Wait for emulator to be ready
       run: |
+        echo "Waiting for emulator to be ready..."
         adb wait-for-device
+        # Disable animations for faster boot
+        adb shell settings put global window_animation_scale 0
+        adb shell settings put global transition_animation_scale 0
+        adb shell settings put global animator_duration_scale 0
+        # Wait for boot completion
         while [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" != "1" ]; do
-          echo "Waiting for emulator to be ready..."
+          echo "Waiting for boot completion..."
           sleep 5
         done
         echo "Emulator is ready"

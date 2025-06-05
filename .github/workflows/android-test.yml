@@ -10,7 +10,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
 
     steps:
     - uses: actions/checkout@v3
@@ -32,7 +32,19 @@ jobs:
         target: google_apis
         arch: x86_64
         profile: pixel_2
-        script: echo "Emulator started"
+        script: |
+          echo "Waiting for emulator to boot..."
+          adb wait-for-device
+          echo "Emulator booted successfully"
+
+    - name: Wait for emulator to be ready
+      run: |
+        adb wait-for-device
+        while [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" != "1" ]; do
+          echo "Waiting for emulator to be ready..."
+          sleep 5
+        done
+        echo "Emulator is ready"
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew

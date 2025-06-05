@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">Car Parking App</string>
+    <string name="my_api_google_map_api_key">AIzaSyDDEUYgQL0bZoq3WqqDfXFBsjSSAU_6DH8</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="login">Login</string>
+    <string name="login2">Login</string>
+    <string name="vision_park">VisionPark</string>
+    <string name="find_your_spot">Find your spot</string>
+    <string name="let_s_get_started">Let\'s Get Started</string>
+    <string name="register_form">Register Form</string>
+    <string name="name">Name</string>
+    <string name="phone_no">Phone no</string>
+    <string name="registration_no">Vehicle Registration No</string>
+    <string name="address">Address</string>
+    <string name="register">Register</string>
+    <string name="already_have_an_account">Already have an account ?</string>
+    <string name="sign_in">Sign In</string>
+    <string name="user_name">User Name</string>
+    <string name="phone_number">Phone Number</string>
+    <string name="registeration_no">Registration No</string>
+    <string name="register_here">Don\'t have an account? Register here</string>
+    <string name="address2">Address</string>
+    <string name="email2">Email</string>
+    <string name="hello_world">Hello World</string>
+    <string name="location">Location</string>
+    <string name="status">Status</string>
+    <string name="time">Time</string>
+</resources>

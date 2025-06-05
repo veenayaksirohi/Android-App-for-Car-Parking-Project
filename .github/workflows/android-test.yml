@@ -53,13 +53,13 @@ jobs:
           echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
           echo "✔️ Found package: $PACKAGE_NAME"
 
-      - name: Run app on Android Emulator (API 28, Pixel 2)
+      - name: Run app on Android Emulator (API 28, pixel_2)
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 28
           target: default
           arch: x86_64
-          profile: Pixel 2
+          profile: pixel_2
           disable-animations: true
           disable-spellchecker: true
           disable-linux-hw-accel: true

@@ -72,7 +72,7 @@ jobs:
             echo "🧹 Clearing previous logcat…"
             adb logcat -c
 
-            echo "📋 Starting background logcat> /tmp/logcat.txt…"
+            echo "📋 Starting background logcat → /tmp/logcat.txt…"
             adb logcat > /tmp/logcat.txt &
             LOGCAT_PID=$!
 
@@ -80,7 +80,6 @@ jobs:
             adb install app/build/outputs/apk/debug/app-debug.apk
 
             echo "🚀 Launching app…"
-            # Wrapped in double quotes so -a and -c flags are not treated as shell options
             adb shell "am start -n ${PACKAGE_NAME}/.MainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER"
 
             echo "⏲️ Running app for 60 seconds with taps/swipes…"

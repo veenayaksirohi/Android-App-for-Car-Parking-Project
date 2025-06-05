@@ -1,4 +1,4 @@
-name: Run Android App for 1 Minute
+name: Run Android App for 1 Minute (with Logcat + Interactions)
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 jobs:
   run-app:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -31,33 +31,104 @@ jobs:
       - name: Extract package name
         id: extract_package
         run: |
-          PACKAGE_NAME=$(grep -oP 'applicationId\s+"[^"]+"' app/build.gradle | cut -d'"' -f2)
-          echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+          # Look for applicationId in Kotlin‐DSL first, then fallback to Groovy
+          if [ -f "app/build.gradle.kts" ]; then
+            PACKAGE_NAME=$(grep -E 'applicationId\s*=' app/build.gradle.kts \
+              | sed -E 's/.*applicationId\s*=\s*"([^"]+)".*/\1/' \
+              | head -1)
+          elif [ -f "app/build.gradle" ]; then
+            PACKAGE_NAME=$(grep -E 'applicationId\s+' app/build.gradle \
+              | sed -E 's/.*applicationId\s+"([^"]+)".*/\1/' \
+              | head -1)
+          else
+            echo "ERROR: Cannot find app/build.gradle.kts or app/build.gradle"
+            exit 1
+          fi
 
-      - name: Run app on Android Emulator
+          if [ -z "$PACKAGE_NAME" ]; then
+            echo "ERROR: applicationId not found in Gradle files!"
+            exit 1
+          fi
+
+          echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+          echo "✔️ Found package: $PACKAGE_NAME"
+
+      - name: Run app on Android Emulator (API 28, Pixel 2)
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 28
           target: default
           arch: x86_64
-          profile: Nexus 2
+          profile: Pixel 2
           disable-animations: true
           disable-spellchecker: true
           disable-linux-hw-accel: true
           emulator-options: -no-window -no-audio -no-boot-anim
           script: |
-            echo "Waiting for emulator to boot…"
+            echo "⏳ Waiting for emulator to boot…"
             adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;'
-            echo "Emulator booted."
+            echo "✅ Emulator booted."
 
-            echo "Installing APK…"
+            echo "🧹 Clearing previous logcat…"
+            adb logcat -c
+
+            echo "📋 Starting background logcat> /tmp/logcat.txt…"
+            adb logcat > /tmp/logcat.txt &
+            LOGCAT_PID=$!
+
+            echo "📦 Installing APK…"
             adb install app/build/outputs/apk/debug/app-debug.apk
 
-            echo "Launching app…"
-            adb shell am start -n "$PACKAGE_NAME/.MainActivity" -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
+            echo "🚀 Launching app…"
+            adb shell am start -n "$PACKAGE_NAME/.MainActivity" \
+              -a android.intent.action.MAIN \
+              -c android.intent.category.LAUNCHER
 
-            echo "Running app for 60 seconds…"
-            sleep 60
+            echo "⏲️ Running app for 60 seconds with taps/swipes…"
+            start_time=$(date +%s)
 
-            echo "Stopping app…"
-            adb shell am force-stop "$PACKAGE_NAME"
+            while true; do
+              current_time=$(date +%s)
+              elapsed=$((current_time - start_time))
+
+              # Stop after 60s
+              if [ $elapsed -ge 60 ]; then
+                echo "✅ Completed 60-second run!"
+                break
+              fi
+
+              # Every 20 seconds: tap & swipe
+              if [ $((elapsed % 20)) -eq 0 ] && [ $elapsed -gt 0 ]; then
+                echo "🤖 Interaction at ${elapsed}s: tapping & swiping…"
+                adb shell input tap 400 800 || true
+                sleep 1
+                adb shell input swipe 200 1200 800 1200 200 || true
+              fi
+
+              # Every 15 seconds: health check
+              if [ $((elapsed % 15)) -eq 0 ] && [ $elapsed -gt 0 ]; then
+                if adb shell pidof "$PACKAGE_NAME" > /dev/null; then
+                  echo "📱 App is still alive (${elapsed}s/60s)…"
+                else
+                  echo "💥 App crashed at ${elapsed}s! Dumping last crash logs:"
+                  adb logcat -d \
+                    | grep -E "(FATAL|AndroidRuntime|$PACKAGE_NAME)" \
+                    | tail -5
+                  break
+                fi
+              fi
+
+              sleep 1
+            done
+
+            echo "🛑 Stopping app…"
+            adb shell am force-stop "$PACKAGE_NAME" || true
+
+            echo "🗒️ Killing background logcat capture…"
+            kill $LOGCAT_PID || true
+            sleep 2
+
+            echo "📂 Last 100 lines of /tmp/logcat.txt:"
+            tail -n 100 /tmp/logcat.txt || true
+
+            echo "🎉 Workflow completed."

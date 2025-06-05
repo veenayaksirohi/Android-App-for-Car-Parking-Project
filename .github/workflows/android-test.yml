@@ -31,7 +31,7 @@ jobs:
       - name: Extract package name
         id: extract_package
         run: |
-          # Look for applicationId in Kotlin‐DSL first, then fallback to Groovy
+          # Look for applicationId in Kotlin-DSL first, then fallback to Groovy
           if [ -f "app/build.gradle.kts" ]; then
             PACKAGE_NAME=$(grep -E 'applicationId\s*=' app/build.gradle.kts \
               | sed -E 's/.*applicationId\s*=\s*"([^"]+)".*/\1/' \

@@ -39,11 +39,19 @@ jobs:
       - name: Start Emulator
         run: |
           echo "Starting emulator..."
+          # Set up environment variables
+          export ANDROID_HOME=$ANDROID_SDK_ROOT
+          export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
+          
           # Start ADB server first
           adb start-server
           
+          # Verify emulator location
+          echo "Emulator location: $(which emulator)"
+          echo "Android SDK location: $ANDROID_HOME"
+          
           # Start emulator with minimal configuration
-          emulator -avd test_device \
+          $ANDROID_HOME/emulator/emulator -avd test_device \
             -no-window \
             -no-audio \
             -no-boot-anim \
@@ -66,6 +74,10 @@ jobs:
           # Verify emulator process is running
           if ! ps -p $EMULATOR_PID > /dev/null; then
             echo "Error: Emulator process failed to start"
+            echo "Checking emulator process..."
+            ps aux | grep emulator
+            echo "Checking emulator directory..."
+            ls -la $ANDROID_HOME/emulator/
             exit 1
           fi
           

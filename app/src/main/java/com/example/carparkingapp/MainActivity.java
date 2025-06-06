@@ -11,12 +11,17 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.example.carparkingapp.features.maps.DashboardActivity;
 import com.example.carparkingapp.features.auth.register.RegisterActivity;
+import com.example.carparkingapp.utils.EnvConfig;
 
 public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // Initialize environment configuration
+        EnvConfig.init(getApplicationContext());
+        
         setContentView(R.layout.activity_main);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());

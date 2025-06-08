@@ -1,6 +1,9 @@
 package com.example.carparkingapp.features.auth.login;
 
+import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
@@ -9,6 +12,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.carparkingapp.R;
@@ -29,6 +33,7 @@ public class LoginActivity extends AppCompatActivity {
     private EditText emailInput, passwordInput;
     private Button loginButton;
     private TextView registerLink;
+    private AlertDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,7 +53,9 @@ public class LoginActivity extends AppCompatActivity {
             Intent intent = new Intent(LoginActivity.this, RegisterActivity.class);
             startActivity(intent);
         });
-    }    private void loginUser() {
+    }
+
+    private void loginUser() {
         String email = emailInput.getText().toString().trim();
         String password = passwordInput.getText().toString().trim();
         
@@ -56,24 +63,22 @@ public class LoginActivity extends AppCompatActivity {
 
         // Validate inputs
         if (email.isEmpty() || password.isEmpty()) {
-            Toast.makeText(this, "Please enter email and password", Toast.LENGTH_SHORT).show();
+            showError("Please enter email and password");
             return;
-        }        // Create login request using model class
+        }
+
+        showProgressDialog();
+        
+        // Create login request using model class
         LoginRequest loginRequest = new LoginRequest(email, password);
 
         // Make API call
         ApiInterface apiInterface = ApiClient.getInstance(this).getService();
-        apiInterface.loginUser(loginRequest).enqueue(new Callback<LoginResponse>() {            @Override
+        apiInterface.loginUser(loginRequest).enqueue(new Callback<LoginResponse>() {
+            @Override
             public void onResponse(@NonNull Call<LoginResponse> call, @NonNull Response<LoginResponse> response) {
+                hideProgressDialog();
                 Log.d("LoginActivity", "Received login response: " + response.code());
-                try {
-                    if (!response.isSuccessful() && response.errorBody() != null) {
-                        String errorResponse = response.errorBody().string();
-                        Log.e("LoginActivity", "Error response body: " + errorResponse);
-                    }
-                } catch (Exception e) {
-                    Log.e("LoginActivity", "Error reading error body", e);
-                }
                 
                 if (response.isSuccessful() && response.body() != null) {
                     LoginResponse result = response.body();
@@ -86,7 +91,7 @@ public class LoginActivity extends AppCompatActivity {
                     
                     // Check for failure message first
                     if (message != null && message.toLowerCase().contains("failed")) {
-                        Toast.makeText(LoginActivity.this, message, Toast.LENGTH_SHORT).show();
+                        showError(message);
                         return;
                     }
                     
@@ -109,15 +114,11 @@ public class LoginActivity extends AppCompatActivity {
                             finish();
                         } catch (Exception e) {
                             Log.e("LoginActivity", "Navigation failed", e);
-                            Toast.makeText(LoginActivity.this,
-                                    "Error navigating to dashboard: " + e.getMessage(),
-                                    Toast.LENGTH_LONG).show();
+                            showError("Error navigating to dashboard: " + e.getMessage());
                         }
                     } else {
                         // Handle missing token
-                        Toast.makeText(LoginActivity.this, 
-                            "Login failed: Invalid credentials", 
-                            Toast.LENGTH_SHORT).show();
+                        showError("Login failed: Invalid credentials");
                     }
                 } else {
                     // Handle unsuccessful response
@@ -133,17 +134,46 @@ public class LoginActivity extends AppCompatActivity {
                             Log.e("LoginActivity", "Error parsing error response", e);
                         }
                     }
-                    Toast.makeText(LoginActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                    showError(errorMessage);
                 }
             }
 
             @Override
             public void onFailure(@NonNull Call<LoginResponse> call, @NonNull Throwable t) {
+                hideProgressDialog();
                 Log.e("LoginActivity", "Network error", t);
-                Toast.makeText(LoginActivity.this,
-                        "Network Error: " + t.getMessage(), 
-                        Toast.LENGTH_SHORT).show();
+                if (!isNetworkAvailable()) {
+                    showError("No internet connection");
+                } else {
+                    showError("Network error. Please try again.");
+                }
             }
         });
+    }
+
+    private void showProgressDialog() {
+        if (progressDialog == null) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setView(R.layout.progress_dialog);
+            builder.setCancelable(false);
+            progressDialog = builder.create();
+        }
+        progressDialog.show();
+    }
+
+    private void hideProgressDialog() {
+        if (progressDialog != null && progressDialog.isShowing()) {
+            progressDialog.dismiss();
+        }
+    }
+
+    private void showError(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    private boolean isNetworkAvailable() {
+        ConnectivityManager manager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = manager.getActiveNetworkInfo();
+        return networkInfo != null && networkInfo.isConnected();
     }
 }

@@ -60,10 +60,8 @@ jobs:
           target: default
           arch: x86_64
           profile: pixel_2
-          disable-animations: true
-          disable-spellchecker: true
-          disable-linux-hw-accel: true
-          emulator-options: -no-window -no-audio -no-boot-anim
+          avd-name: pixel_2_api_28
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot-save
           script: |
             echo "⏳ Waiting for emulator to boot…"
             adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;'
@@ -77,12 +75,12 @@ jobs:
             LOGCAT_PID=$!
 
             echo "📦 Installing APK…"
-            adb install app/build/outputs/apk/debug/app-debug.apk
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
 
             echo "🚀 Launching app…"
             adb shell "am start -n ${PACKAGE_NAME}/.MainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER"
 
-            echo "⏲️ Running app for 60 seconds with taps/swipes…"
+            echo "⏲️ Running app for 60 seconds with comprehensive interactions…"
             start_time=$(date +%s)
 
             while true; do
@@ -95,23 +93,43 @@ jobs:
                 break
               fi
 
-              # Every 20 seconds: tap & swipe
-              if [ $((elapsed % 20)) -eq 0 ] && [ $elapsed -gt 0 ]; then
-                echo "🤖 Interaction at ${elapsed}s: tapping & swiping…"
-                adb shell input tap 400 800 || true
+              # Every 15 seconds: perform a set of interactions
+              if [ $((elapsed % 15)) -eq 0 ] && [ $elapsed -gt 0 ]; then
+                echo "🤖 Interaction at ${elapsed}s: performing test sequence…"
+                
+                # Tap center of screen
+                adb shell input tap 540 960 || true
                 sleep 1
-                adb shell input swipe 200 1200 800 1200 200 || true
+                
+                # Swipe from left to right
+                adb shell input swipe 100 960 980 960 200 || true
+                sleep 1
+                
+                # Swipe from top to bottom
+                adb shell input swipe 540 400 540 1600 200 || true
+                sleep 1
+                
+                # Back button press
+                adb shell input keyevent KEYCODE_BACK || true
+                sleep 1
               fi
 
-              # Every 15 seconds: health check
-              if [ $((elapsed % 15)) -eq 0 ] && [ $elapsed -gt 0 ]; then
+              # Every 10 seconds: health check
+              if [ $((elapsed % 10)) -eq 0 ] && [ $elapsed -gt 0 ]; then
                 if adb shell pidof "$PACKAGE_NAME" > /dev/null; then
                   echo "📱 App is still alive (${elapsed}s/60s)…"
+                  
+                  # Check for ANR
+                  if adb shell dumpsys window windows | grep -q "Application Not Responding"; then
+                    echo "⚠️ ANR detected! Dumping ANR logs:"
+                    adb shell dumpsys dropbox | grep -i anr
+                    break
+                  fi
                 else
-                  echo "💥 App crashed at ${elapsed}s! Dumping last crash logs:"
+                  echo "💥 App crashed at ${elapsed}s! Dumping crash logs:"
                   adb logcat -d \
-                    | grep -E "(FATAL|AndroidRuntime|$PACKAGE_NAME)" \
-                    | tail -5
+                    | grep -E "(FATAL|AndroidRuntime|$PACKAGE_NAME|Exception|Error)" \
+                    | tail -20
                   break
                 fi
               fi

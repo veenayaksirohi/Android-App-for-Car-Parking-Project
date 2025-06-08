@@ -7,18 +7,58 @@ public class RegisterRequest {
     private String user_phone_no;
     private String user_address;
 
-    public RegisterRequest(String name, String email, String password, String phone, String address) {
-        this.user_name = name;
-        this.user_email = email;
-        this.user_password = password;
-        this.user_phone_no = phone;
-        this.user_address = address;
+    public RegisterRequest(String user_name, String user_email, String user_password, String user_phone_no) {
+        this.user_name = user_name;
+        this.user_email = user_email;
+        this.user_password = user_password;
+        this.user_phone_no = user_phone_no;
     }
 
-    // Getters
-    public String getUser_name() { return user_name; }
-    public String getUser_email() { return user_email; }
-    public String getUser_password() { return user_password; }
-    public String getUser_phone_no() { return user_phone_no; }
-    public String getUser_address() { return user_address; }
+    public RegisterRequest(String user_name, String user_email, String user_password, String user_phone_no, String user_address) {
+        this.user_name = user_name;
+        this.user_email = user_email;
+        this.user_password = user_password;
+        this.user_phone_no = user_phone_no;
+        this.user_address = user_address;
+    }
+
+    public String getUser_name() {
+        return user_name;
+    }
+
+    public void setUser_name(String user_name) {
+        this.user_name = user_name;
+    }
+
+    public String getUser_email() {
+        return user_email;
+    }
+
+    public void setUser_email(String user_email) {
+        this.user_email = user_email;
+    }
+
+    public String getUser_password() {
+        return user_password;
+    }
+
+    public void setUser_password(String user_password) {
+        this.user_password = user_password;
+    }
+
+    public String getUser_phone_no() {
+        return user_phone_no;
+    }
+
+    public void setUser_phone_no(String user_phone_no) {
+        this.user_phone_no = user_phone_no;
+    }
+
+    public String getUser_address() {
+        return user_address;
+    }
+
+    public void setUser_address(String user_address) {
+        this.user_address = user_address;
+    }
 }

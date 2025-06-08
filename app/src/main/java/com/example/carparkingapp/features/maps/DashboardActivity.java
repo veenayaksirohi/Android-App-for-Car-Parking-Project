@@ -9,8 +9,12 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.SearchView;
+import android.view.View;
+import android.widget.EditText;
 import android.widget.Toast;
+import androidx.appcompat.widget.SearchView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -20,7 +24,8 @@ import com.example.carparkingapp.R;
 import com.example.carparkingapp.core.network.ApiClient;
 import com.example.carparkingapp.core.network.ApiInterface;
 import com.example.carparkingapp.features.auth.login.LoginActivity;
-import com.example.carparkingapp.models.ParkingLocation;
+import com.example.carparkingapp.features.maps.adapters.ParkingRecyclerAdapter;
+import com.example.carparkingapp.models.ParkingLotDetails;
 import com.example.carparkingapp.utils.TokenManager;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -31,6 +36,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
@@ -51,7 +57,10 @@ public class DashboardActivity extends AppCompatActivity implements OnMapReadyCa
     private Location lastKnownLocation;
     private FusedLocationProviderClient fusedLocationClient;
     private SearchView searchView;
+    private RecyclerView searchSuggestionsList;
     private List<Marker> parkingMarkers;
+    private ParkingRecyclerAdapter parkingAdapter;
+    private List<ParkingLotDetails> pendingParkingList;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,20 +78,64 @@ public class DashboardActivity extends AppCompatActivity implements OnMapReadyCa
             mapFragment.getMapAsync(this);
         }
         
-        // Set up search view
+        // Set up SearchView and RecyclerView
         searchView = findViewById(R.id.mapSearch);
+        searchSuggestionsList = findViewById(R.id.searchSuggestionsList);
+        
+        // Set up RecyclerView
+        searchSuggestionsList.setLayoutManager(new LinearLayoutManager(this));
+        parkingAdapter = new ParkingRecyclerAdapter(new ArrayList<>());
+        searchSuggestionsList.setAdapter(parkingAdapter);
+        
+        // Set up item click listener
+        parkingAdapter.setOnItemClickListener(parking -> {
+            if (parking != null) {
+                LatLng location = new LatLng(parking.getLatitude(), parking.getLongitude());
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(location, 17));
+                
+                // Find and highlight the marker
+                for (Marker marker : parkingMarkers) {
+                    if (marker.getTitle() != null && 
+                        marker.getTitle().equals(parking.getParking_name())) {
+                        marker.showInfoWindow();
+                        break;
+                    }
+                }
+                // Hide search suggestions after selection
+                searchSuggestionsList.setVisibility(View.GONE);
+            }
+        });
+
+        // Set up search listeners
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
                 searchLocation(query);
+                searchSuggestionsList.setVisibility(View.GONE);
                 return true;
             }
 
             @Override
             public boolean onQueryTextChange(String newText) {
-                return false;
+                if (newText.length() > 0) {
+                    searchSuggestionsList.setVisibility(View.VISIBLE);
+                    parkingAdapter.getFilter().filter(newText);
+                } else {
+                    searchSuggestionsList.setVisibility(View.GONE);
+                }
+                return true;
             }
         });
+
+        // Hide suggestions when search view loses focus
+        searchView.setOnQueryTextFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                searchSuggestionsList.setVisibility(View.GONE);
+            }
+        });
+        
+        // Start loading data
+        loadParkingLots();
     }
 
     @Override
@@ -109,7 +162,14 @@ public class DashboardActivity extends AppCompatActivity implements OnMapReadyCa
                         lastKnownLocation = location;
                         LatLng currentLocation = new LatLng(location.getLatitude(), location.getLongitude());
                         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 15));
-                        loadParkingLots();
+                        
+                        // If we have pending parking data, update the map with it
+                        if (pendingParkingList != null) {
+                            updateMapWithParking(pendingParkingList);
+                            pendingParkingList = null;
+                        } else {
+                            loadParkingLots();
+                        }
                     }
                 });
     }
@@ -125,9 +185,9 @@ public class DashboardActivity extends AppCompatActivity implements OnMapReadyCa
         
         Log.d(TAG, "Loading parking lots with token: " + token);
 
-        ApiClient.getInstance(this).getService().getParkingLots(token).enqueue(new Callback<List<ParkingLocation>>() {
+        ApiClient.getInstance(this).getService().getParkingLots(token).enqueue(new Callback<List<ParkingLotDetails>>() {
             @Override
-            public void onResponse(@NonNull Call<List<ParkingLocation>> call, @NonNull Response<List<ParkingLocation>> response) {
+            public void onResponse(@NonNull Call<List<ParkingLotDetails>> call, @NonNull Response<List<ParkingLotDetails>> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     updateMapWithParking(response.body());
                 } else {
@@ -137,7 +197,7 @@ public class DashboardActivity extends AppCompatActivity implements OnMapReadyCa
             }
 
             @Override
-            public void onFailure(@NonNull Call<List<ParkingLocation>> call, @NonNull Throwable t) {
+            public void onFailure(@NonNull Call<List<ParkingLotDetails>> call, @NonNull Throwable t) {
                 Log.e(TAG, "Failed to load parking lots: " + t.getMessage());
                 Toast.makeText(DashboardActivity.this,
                     "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
@@ -174,15 +234,15 @@ public class DashboardActivity extends AppCompatActivity implements OnMapReadyCa
             return;
         }
 
-        ApiClient.getInstance(this).getService().getParkingLots(token).enqueue(new Callback<List<ParkingLocation>>() {
+        ApiClient.getInstance(this).getService().getParkingLots(token).enqueue(new Callback<List<ParkingLotDetails>>() {
             @Override
-            public void onResponse(@NonNull Call<List<ParkingLocation>> call, @NonNull Response<List<ParkingLocation>> response) {
+            public void onResponse(@NonNull Call<List<ParkingLotDetails>> call, @NonNull Response<List<ParkingLotDetails>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    List<ParkingLocation> allLocations = response.body();
-                    List<ParkingLocation> nearbyLocations = new ArrayList<>();
+                    List<ParkingLotDetails> allLocations = response.body();
+                    List<ParkingLotDetails> nearbyLocations = new ArrayList<>();
                     
                     // Filter locations within 5km radius
-                    for (ParkingLocation location : allLocations) {
+                    for (ParkingLotDetails location : allLocations) {
                         double distance = calculateDistance(
                             targetLocation.latitude, targetLocation.longitude,
                             location.getLatitude(), location.getLongitude()
@@ -200,7 +260,7 @@ public class DashboardActivity extends AppCompatActivity implements OnMapReadyCa
             }
 
             @Override
-            public void onFailure(@NonNull Call<List<ParkingLocation>> call, @NonNull Throwable t) {
+            public void onFailure(@NonNull Call<List<ParkingLotDetails>> call, @NonNull Throwable t) {
                 Log.e(TAG, "Failed to load parking lots: " + t.getMessage());
                 Toast.makeText(DashboardActivity.this,
                     "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
@@ -208,7 +268,26 @@ public class DashboardActivity extends AppCompatActivity implements OnMapReadyCa
         });
     }
 
-    private void updateMapWithParking(List<ParkingLocation> parkingList) {
+    private void updateMapWithParking(List<ParkingLotDetails> parkingList) {
+        // Update adapter with new data
+        if (parkingList != null) {
+            runOnUiThread(() -> {
+                parkingAdapter.updateLocations(parkingList);
+                // Show search suggestions list if adapter is not empty
+                if (!parkingList.isEmpty()) {
+                    searchView.setQueryHint("Found " + parkingList.size() + " parking locations");
+                }
+            });
+        }
+        
+        // Check if map is ready
+        if (mMap == null) {
+            Log.d(TAG, "Map not ready yet, storing parking data for later");
+            // Store the parking list to be added when map is ready
+            pendingParkingList = parkingList;
+            return;
+        }
+        
         // Clear existing markers
         for (Marker marker : parkingMarkers) {
             marker.remove();
@@ -216,20 +295,23 @@ public class DashboardActivity extends AppCompatActivity implements OnMapReadyCa
         parkingMarkers.clear();
 
         // Add new markers
-        for (ParkingLocation parking : parkingList) {
+        for (ParkingLotDetails parking : parkingList) {
             LatLng position = new LatLng(parking.getLatitude(), parking.getLongitude());
             
             // Calculate color based on availability
             double availabilityPercentage = (double) parking.getAvailableSlots() / parking.getTotalSlots() * 100;
             float markerColor = getMarkerColor(availabilityPercentage);
-            
-            // Create and add marker
-            Marker marker = mMap.addMarker(new MarkerOptions()
-                    .position(position)
-                    .title(parking.getParkingName())
-                    .snippet("Available: " + parking.getAvailableSlots() + "/" + parking.getTotalSlots())
-                    .icon(BitmapDescriptorFactory.defaultMarker(markerColor)));
-            
+
+            // Create marker with custom icon
+            BitmapDescriptor icon = BitmapDescriptorFactory.defaultMarker(markerColor);
+            MarkerOptions markerOptions = new MarkerOptions()
+                .position(position)
+                .title(parking.getParking_name())
+                .snippet(String.format("Available: %d/%d slots", 
+                    parking.getAvailableSlots(), parking.getTotalSlots()))
+                .icon(icon);
+
+            Marker marker = mMap.addMarker(markerOptions);
             if (marker != null) {
                 parkingMarkers.add(marker);
             }

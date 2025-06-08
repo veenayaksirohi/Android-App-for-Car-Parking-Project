@@ -1,0 +1,70 @@
+build:
+  maxIssues: 0
+  weights:
+    complexity: 2
+    formatting: 1
+    LongParameterList: 1
+    comments: 1
+
+complexity:
+  TooManyFunctions:
+    thresholdInFiles: 20
+    thresholdInClasses: 15
+    thresholdInInterfaces: 10
+    thresholdInObjects: 15
+  LongParameterList:
+    functionThreshold: 8
+    constructorThreshold: 7
+  CyclomaticComplexMethod:
+    threshold: 20
+  LargeClass:
+    threshold: 150
+  NestedBlockDepth:
+    threshold: 4
+
+formatting:
+  active: true
+  android: true
+  autoCorrect: true
+
+style:
+  MagicNumber:
+    active: true
+    ignoreNumbers: ['-1', '0', '1', '2']
+    ignoreHashCodeFunction: true
+    ignorePropertyDeclaration: true
+    ignoreAnnotation: true
+  MaxLineLength:
+    maxLineLength: 100
+  NewLineAtEndOfFile:
+    active: true
+  TrailingWhitespace:
+    active: true
+  WildcardImport:
+    active: true
+    excludeImports: ['java.util.*', 'kotlinx.android.synthetic.*']
+
+comments:
+  active: true
+  EndOfSentenceFormat:
+    active: true
+  UndocumentedPublicClass:
+    active: true
+  UndocumentedPublicFunction:
+    active: true
+  UndocumentedPublicProperty:
+    active: true
+
+coroutines:
+  GlobalCoroutineUsage:
+    active: true
+  RedundantSuspendModifier:
+    active: true
+
+performance:
+  SpreadOperator:
+    active: true
+  ArrayPrimitive:
+    active: true
+  UnnecessaryTemporaryInstantiation:
+    active: true 

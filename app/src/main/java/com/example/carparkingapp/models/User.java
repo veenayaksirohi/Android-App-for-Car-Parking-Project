@@ -1,79 +1,70 @@
 package com.example.carparkingapp.models;
 
-import com.google.gson.annotations.SerializedName;
-
 public class User {
-    @SerializedName("user_name")
-    private String userName;
+    private int user_id;
+    private String user_name;
+    private String user_email;
+    private String user_password;
+    private String user_phone_no;
+    private String user_address;
 
-    @SerializedName("user_email")
-    private String userEmail;
-
-    @SerializedName("user_password")
-    private String userPassword;
-
-    @SerializedName("user_phone_no")
-    private long userPhoneNo;
-
-    @SerializedName("user_address")
-    private String userAddress;
-
-    public User(String userName, String userEmail, String userPassword, long userPhoneNo, String userAddress) {
-        this.userName = userName;
-        this.userEmail = userEmail;
-        this.userPassword = userPassword;
-        this.userPhoneNo = userPhoneNo;
-        this.userAddress = userAddress;
+    public int getUser_id() {
+        return user_id;
     }
 
-    public String getUserName() {
-        return userName;
+    public void setUser_id(int user_id) {
+        this.user_id = user_id;
     }
 
-    public String getUserEmail() {
-        return userEmail;
+    public String getUser_name() {
+        return user_name;
     }
 
-    public String getUserPassword() {
-        return userPassword;
+    public void setUser_name(String user_name) {
+        this.user_name = user_name;
     }
 
-    public long getUserPhoneNo() {
-        return userPhoneNo;
+    public String getUser_email() {
+        return user_email;
     }
 
-    public String getUserAddress() {
-        return userAddress;
+    public void setUser_email(String user_email) {
+        this.user_email = user_email;
     }
 
-    public void setUserName(String userName) {
-        this.userName = userName;
+    public String getUser_password() {
+        return user_password;
     }
 
-    public void setUserEmail(String userEmail) {
-        this.userEmail = userEmail;
+    public void setUser_password(String user_password) {
+        this.user_password = user_password;
     }
 
-    public void setUserPassword(String userPassword) {
-        this.userPassword = userPassword;
+    public String getUser_phone_no() {
+        return user_phone_no;
     }
 
-    public void setUserPhoneNo(long userPhoneNo) {
-        this.userPhoneNo = userPhoneNo;
+    public void setUser_phone_no(String user_phone_no) {
+        this.user_phone_no = user_phone_no;
     }
 
-    public void setUserAddress(String userAddress) {
-        this.userAddress = userAddress;
+    public String getUser_address() {
+        return user_address;
+    }
+
+    public void setUser_address(String user_address) {
+        this.user_address = user_address;
     }
 
     @Override
     public String toString() {
         return "User{" +
-                "userName='" + userName + '\'' +
-                ", userEmail='" + userEmail + '\'' +
-                ", userPassword='" + userPassword + '\'' +
-                ", userPhoneNo=" + userPhoneNo +
-                ", userAddress='" + userAddress + '\'' +
+                "user_id=" + user_id +
+                ", user_name='" + user_name + '\'' +
+                ", user_email='" + user_email + '\'' +
+                ", user_password='" + user_password + '\'' +
+                ", user_phone_no='" + user_phone_no + '\'' +
+                ", user_address='" + user_address + '\'' +
                 '}';
     }
 }

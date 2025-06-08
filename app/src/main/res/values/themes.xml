@@ -1,9 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.CarParkingApp" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    <!-- Base VisionParking theme -->
+    <style name="Theme.VisionParking" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Primary brand colors -->
+        <item name="colorPrimary">@color/vision_purple_primary</item>
+        <item name="colorPrimaryVariant">@color/vision_purple_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        
+        <!-- Secondary brand colors -->
+        <item name="colorSecondary">@color/vision_pink_primary</item>
+        <item name="colorSecondaryVariant">@color/vision_pink_dark</item>
+        <item name="colorOnSecondary">@color/white</item>
+        
+        <!-- Background colors -->
+        <item name="android:windowBackground">@color/background</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="colorOnBackground">@color/on_background</item>
+        
+        <!-- Status bar -->
+        <item name="android:statusBarColor" tools:targetApi="l">@color/vision_purple_dark</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+        
+        <!-- Navigation bar -->
+        <item name="android:navigationBarColor" tools:targetApi="l">@color/vision_purple_dark</item>
+        
+        <!-- Error colors -->
+        <item name="colorError">@color/error</item>
+        <item name="colorOnError">@color/white</item>
+        
+        <!-- Text colors -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:textColorHint">@color/text_hint</item>
+        
+        <!-- Material component overrides -->
+        <item name="elevationOverlayEnabled">true</item>
+        <item name="android:windowContentTransitions">true</item>
+
+        <!-- Material Design component styles -->
+        <item name="materialButtonStyle">@style/Widget.VisionParking.Button</item>
+        <item name="materialButtonOutlinedStyle">@style/Widget.VisionParking.Button.Outlined</item>
+        <item name="materialCardViewStyle">@style/Widget.VisionParking.Card</item>
+        <item name="textInputStyle">@style/Widget.VisionParking.TextInputLayout</item>
+        <item name="chipStyle">@style/Widget.VisionParking.Chip</item>
+        <item name="bottomNavigationStyle">@style/Widget.VisionParking.BottomNavigationView</item>
+        <item name="floatingActionButtonStyle">@style/Widget.VisionParking.FloatingActionButton</item>
+        <item name="toolbarStyle">@style/Widget.VisionParking.Toolbar</item>
+        <item name="tabStyle">@style/Widget.VisionParking.TabLayout</item>
+        <item name="progressBarStyle">@style/Widget.VisionParking.ProgressBar</item>
+        <item name="switchStyle">@style/Widget.VisionParking.Switch</item>
     </style>
 
-    <style name="Theme.CarParkingApp" parent="Base.Theme.CarParkingApp" />
+    <!-- Base widget style -->
+    <style name="Widget.VisionParking" parent="Widget.MaterialComponents">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <!-- Parking Status base style -->
+    <style name="Widget.VisionParking.ParkingStatus" parent="Widget.AppCompat.TextView">
+        <item name="android:textColor">@color/white</item>
+        <item name="android:padding">8dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- Splash Screen Theme -->
+    <style name="Theme.VisionParking.Splash" parent="Theme.VisionParking">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+        <item name="android:statusBarColor">@color/vision_purple_primary</item>
+        <item name="android:navigationBarColor">@color/vision_purple_primary</item>
+    </style>
+
+    <!-- Dialog Theme -->
+    <style name="Theme.VisionParking.Dialog" parent="ThemeOverlay.MaterialComponents.Dialog.Alert">
+        <item name="colorPrimary">@color/vision_purple_primary</item>
+        <item name="colorSecondary">@color/vision_pink_primary</item>
+        <item name="android:windowBackground">@color/surface</item>
+    </style>
+
+    <!-- Text Appearances -->
+    <style name="TextAppearance.VisionParking.Headline1" parent="TextAppearance.MaterialComponents.Headline1">
+        <item name="android:textSize">96sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.VisionParking.Headline2" parent="TextAppearance.MaterialComponents.Headline2">
+        <item name="android:textSize">60sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.VisionParking.Headline3" parent="TextAppearance.MaterialComponents.Headline3">
+        <item name="android:textSize">48sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.VisionParking.Headline4" parent="TextAppearance.MaterialComponents.Headline4">
+        <item name="android:textSize">34sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.VisionParking.Headline5" parent="TextAppearance.MaterialComponents.Headline5">
+        <item name="android:textSize">24sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.VisionParking.Headline6" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.VisionParking.Subtitle1" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.VisionParking.Subtitle2" parent="TextAppearance.MaterialComponents.Subtitle2">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.VisionParking.Body1" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.VisionParking.Body2" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.VisionParking.Button" parent="TextAppearance.MaterialComponents.Button">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
+    <style name="TextAppearance.VisionParking.Caption" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+    </style>
+
+    <style name="TextAppearance.VisionParking.Overline" parent="TextAppearance.MaterialComponents.Overline">
+        <item name="android:textSize">10sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:letterSpacing">0.15</item>
+    </style>
+
+    <!-- Brand Title Style -->
+    <style name="TextAppearance.VisionParking.Brand" parent="TextAppearance.MaterialComponents.Headline1">
+        <item name="android:textSize">28sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/vision_purple_primary</item>
+        <item name="android:letterSpacing">0.05</item>
+        <item name="fontFamily">sans-serif-black</item>
+    </style>
 </resources>

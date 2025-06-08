@@ -1,0 +1,10 @@
+# API Keys
+MAPS_API_KEY=your_maps_api_key_here
+
+# Server URLs
+API_BASE_URL=http://192.168.187.191
+STAGING_BASE_URL=http://staging-api.example.com
+PRODUCTION_BASE_URL=http://api.example.com
+
+# Other configurations
+ENCRYPTION_KEY=your_encryption_key_here 

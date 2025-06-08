@@ -1,31 +1,32 @@
 package com.example.carparkingapp.models;
 
-import com.google.gson.annotations.SerializedName;
-
 public class LoginResponse {
-    @SerializedName("message")
     private String message;
-
-    @SerializedName("token")
     private String token;
+    private int user_id;
 
-    @SerializedName("user_id")
-    private int userId;
-
-    // Default constructor (needed for Gson/Retrofit)
-    public LoginResponse() { }
-
-    // Getters for the fields
     public String getMessage() {
         return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
     }
 
     public String getToken() {
         return token;
     }
 
-    public int getUserId() {
-        return userId;
+    public void setToken(String token) {
+        this.token = token;
+    }
+
+    public int getUser_id() {
+        return user_id;
+    }
+
+    public void setUser_id(int user_id) {
+        this.user_id = user_id;
     }
 
     // Check if the response indicates success based on both token and message

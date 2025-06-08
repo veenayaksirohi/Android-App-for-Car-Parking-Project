@@ -76,15 +76,11 @@ public class RegisterActivity extends AppCompatActivity {
                 public void onResponse(@NonNull Call<RegisterResponse> call, @NonNull Response<RegisterResponse> response) {
                     if (response.isSuccessful() && response.body() != null) {
                         RegisterResponse result = response.body();
-                        if (result.isSuccess()) {
-                            Toast.makeText(RegisterActivity.this, result.getMessage(), Toast.LENGTH_SHORT).show();
-                            // Navigate to Login screen after successful registration
-                            Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
-                            startActivity(intent);
-                            finish();
-                        } else {
-                            Toast.makeText(RegisterActivity.this, result.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
+                        Toast.makeText(RegisterActivity.this, result.getMessage(), Toast.LENGTH_SHORT).show();
+                        // Navigate to Login screen after successful registration
+                        Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
+                        startActivity(intent);
+                        finish();
                     } else {
                         String errorMessage = "Registration failed";
                         if (response.errorBody() != null) {
@@ -106,6 +102,4 @@ public class RegisterActivity extends AppCompatActivity {
                 }
             });
     }
-
-
 }

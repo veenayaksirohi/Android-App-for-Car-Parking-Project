@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
-    android:background="#F5F5F5">
+    android:background="@color/primary">
 
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
@@ -14,7 +14,7 @@
         android:layout_centerInParent="true"
         app:cardCornerRadius="16dp"
         app:cardElevation="8dp"
-        android:backgroundTint="#FFFFFF">
+        android:backgroundTint="@color/surface">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -30,7 +30,7 @@
                 android:textSize="24sp"
                 android:textStyle="bold"
                 android:gravity="center"
-                android:textColor="@color/green"
+                android:textColor="@color/text_primary"
                 android:paddingBottom="16dp" />
 
             <EditText
@@ -40,8 +40,10 @@
                 android:autofillHints=""
                 android:hint="@string/name"
                 android:inputType="text"
-                android:background="@drawable/edittext_border"
+                android:background="@color/white"
                 android:padding="12dp"
+                android:textColorHint="@color/text_secondary"
+                android:textColor="@color/text_primary"
                 android:layout_marginBottom="12dp" />
 
             <EditText
@@ -51,8 +53,10 @@
                 android:autofillHints=""
                 android:hint="@string/email"
                 android:inputType="textEmailAddress"
-                android:background="@drawable/edittext_border"
+                android:background="@color/white"
                 android:padding="12dp"
+                android:textColorHint="@color/text_secondary"
+                android:textColor="@color/text_primary"
                 android:layout_marginBottom="12dp" />
 
             <EditText
@@ -62,8 +66,10 @@
                 android:autofillHints=""
                 android:hint="@string/password"
                 android:inputType="textPassword"
-                android:background="@drawable/edittext_border"
+                android:background="@color/white"
                 android:padding="12dp"
+                android:textColorHint="@color/text_secondary"
+                android:textColor="@color/text_primary"
                 android:layout_marginBottom="20dp" />
 
             <EditText
@@ -73,8 +79,10 @@
                 android:autofillHints=""
                 android:hint="@string/phone_no"
                 android:inputType="number"
-                android:background="@drawable/edittext_border"
+                android:background="@color/white"
                 android:padding="12dp"
+                android:textColorHint="@color/text_secondary"
+                android:textColor="@color/text_primary"
                 android:layout_marginBottom="20dp" />
 
             <EditText
@@ -84,8 +92,10 @@
                 android:autofillHints=""
                 android:hint="@string/address"
                 android:inputType="text"
-                android:background="@drawable/edittext_border"
+                android:background="@color/white"
                 android:padding="12dp"
+                android:textColorHint="@color/text_secondary"
+                android:textColor="@color/text_primary"
                 android:layout_marginBottom="20dp"/>
 
 
@@ -95,8 +105,8 @@
                 android:layout_height="wrap_content"
                 android:focusable="true"
                 android:text="@string/register"
-                android:backgroundTint="#3F51B5"
-                android:textColor="#FFFFFF"
+                android:backgroundTint="@color/secondary"
+                android:textColor="@color/white"
                 android:padding="12dp"
                 android:textStyle="bold"
                 android:clickable="true" />
@@ -112,7 +122,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/already_have_an_account"
                     android:textSize="16sp"
-                    android:textColor="#808080"
+                    android:textColor="@color/text_primary"
                     android:paddingTop="8dp"
                     android:layout_marginStart="20dp" />
 
@@ -122,7 +132,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/sign_in"
                     android:textSize="16sp"
-                    android:textColor="#0000FF"
+                    android:textColor="@color/text_primary"
                     android:clickable="true"
                     android:layout_marginStart="8dp"
                     android:focusable="true" />

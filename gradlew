@@ -1,5 +1,15 @@
 #!/usr/bin/env sh
 
+# Add Git Bash bin to PATH if not already present
+if [ -d "/c/Program Files/Git/bin" ]; then
+    PATH="/c/Program Files/Git/bin:$PATH"
+fi
+if [ -d "/c/Program Files/Git/usr/bin" ]; then
+    PATH="/c/Program Files/Git/usr/bin:$PATH"
+fi
+
+PATH=$PATH:/usr/bin
+
 #
 # Copyright 2015 the original author or authors.
 #
@@ -128,10 +138,10 @@ fi
 
 # For Cygwin or MSYS, switch paths to Windows format before running java
 if [ "$cygwin" = "true" -o "$msys" = "true" ] ; then
-    APP_HOME=`cygpath --path --mixed "$APP_HOME"`
-    CLASSPATH=`cygpath --path --mixed "$CLASSPATH"`
-
-    JAVACMD=`cygpath --unix "$JAVACMD"`
+    # Use Windows-style paths directly instead of cygpath
+    APP_HOME=$(echo "$APP_HOME" | sed 's|/|\\|g')
+    CLASSPATH=$(echo "$CLASSPATH" | sed 's|/|\\|g')
+    JAVACMD=$(echo "$JAVACMD" | sed 's|/|\\|g')
 
     # We build the pattern for arguments to be converted via cygpath
     ROOTDIRSRAW=`find -L / -maxdepth 1 -mindepth 1 -type d 2>/dev/null`

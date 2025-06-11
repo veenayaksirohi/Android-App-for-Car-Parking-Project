@@ -6,7 +6,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
-    id("com.google.dagger.hilt.android") version "2.50"
+    id("com.google.dagger.hilt.android")
     id("org.jlleitschuh.gradle.ktlint") version "12.1.0"
     id("io.gitlab.arturbosch.detekt") version "1.23.7"
     id("kotlin-kapt")
@@ -31,9 +31,11 @@ android {
     buildTypes {
         debug {
             buildConfigField("boolean", "DEBUG", "true")
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:5000/\"")
         }
         release {
             buildConfigField("boolean", "DEBUG", "false")
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:5000/\"")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -57,6 +59,17 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    kapt {
+        correctErrorTypes = true
+        useBuildCache = true
+        arguments {
+            arg("dagger.fastInit", "enabled")
+        }
+        javacOptions {
+            option("-Xmaxerrs", 500)
+        }
+    }
 }
 
 kotlin {
@@ -67,6 +80,7 @@ configurations.all {
     resolutionStrategy {
         force("org.jetbrains.kotlin:kotlin-stdlib:1.9.0")
         force("org.jetbrains.kotlin:kotlin-stdlib-common:1.9.0")
+        force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.0")
     }
 }
 
@@ -90,7 +104,7 @@ dependencies {
     
     // Maps
     implementation("com.google.android.gms:play-services-maps:18.2.0")
-    implementation("com.google.android.gms:play-services-location:17.0.0")
+    implementation("com.google.android.gms:play-services-location:21.1.0")
     
     // Testing
     testImplementation("junit:junit:4.13.2")
@@ -146,13 +160,5 @@ tasks.withType<io.gitlab.arturbosch.detekt.DetektCreateBaselineTask>().configure
 tasks.withType<KotlinCompile>().configureEach {
     kotlinOptions {
         jvmTarget = "17"
-    }
-}
-
-kapt {
-    correctErrorTypes = true
-    javacOptions {
-        option("-source", "17")
-        option("-target", "17")
     }
 }

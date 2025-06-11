@@ -1,5 +1,6 @@
 # Car Parking Android App
 
+
 A modern Android application for managing car parking spaces, built with Kotlin and following clean architecture principles.
 
 ## Features

@@ -1,4 +1,4 @@
-name: Run Android App for 1 Minute (with Logcat + Interactions)
+name: Run Android App for 1 Minute (Basic Test)
 
 on:
   push:
@@ -11,27 +11,48 @@ jobs:
   run-app:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      API_BASE_URL: "http://10.0.2.2:5000/"
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Create local.properties
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "MAPS_API_KEY=${{ secrets.MAPS_API_KEY }}" >> local.properties
+          echo "API_BASE_URL=${{ env.API_BASE_URL }}" >> local.properties
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --stacktrace
+        env:
+          ANDROID_HOME: ${{ secrets.ANDROID_HOME }}
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+          API_BASE_URL: ${{ env.API_BASE_URL }}
 
       - name: Extract package name
         id: extract_package
         run: |
-          # Look for applicationId in Kotlin-DSL first, then fallback to Groovy
           if [ -f "app/build.gradle.kts" ]; then
             PACKAGE_NAME=$(grep -E 'applicationId\s*=' app/build.gradle.kts \
               | sed -E 's/.*applicationId\s*=\s*"([^"]+)".*/\1/' \
@@ -53,6 +74,87 @@ jobs:
           echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
           echo "✔️ Found package: $PACKAGE_NAME"
 
+      - name: Create test script
+        run: |
+          cat > test_script.sh << 'EOF'
+          #!/bin/bash
+          set -e
+
+          echo "⏳ Waiting for emulator to boot…"
+          adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;'
+          echo "✅ Emulator booted."
+
+          echo "🧹 Clearing previous logcat…"
+          adb logcat -c
+
+          echo "📋 Starting background logcat → /tmp/logcat.txt…"
+          adb logcat > /tmp/logcat.txt &
+          LOGCAT_PID=$!
+
+          echo "📦 Installing APK…"
+          adb install -r app/build/outputs/apk/debug/app-debug.apk
+
+          echo "🚀 Launching app…"
+          adb shell "am start -n ${PACKAGE_NAME}/.MainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER"
+
+          echo "⏲️ Running app for 60 seconds…"
+          start_time=$(date +%s)
+          
+          # Create screenshots directory
+          mkdir -p screenshots
+          screenshot_count=1
+
+          while true; do
+            current_time=$(date +%s)
+            elapsed=$((current_time - start_time))
+
+            # Stop after 60s
+            if [ $elapsed -ge 60 ]; then
+              echo "✅ Completed 60-second run!"
+              break
+            fi
+
+            # Every 20 seconds: take screenshot
+            if [ $((elapsed % 20)) -eq 0 ] && [ $elapsed -gt 0 ]; then
+              echo "📸 Taking screenshot ${screenshot_count}..."
+              adb shell screencap -p /sdcard/screenshot_${screenshot_count}.png
+              adb pull /sdcard/screenshot_${screenshot_count}.png screenshots/
+              screenshot_count=$((screenshot_count + 1))
+            fi
+
+            # Every 10 seconds: health check
+            if [ $((elapsed % 10)) -eq 0 ] && [ $elapsed -gt 0 ]; then
+              if adb shell pidof "$PACKAGE_NAME" > /dev/null; then
+                echo "📱 App is still running (${elapsed}s/60s)…"
+              else
+                echo "💥 App crashed at ${elapsed}s! Dumping crash logs:"
+                adb logcat -d \
+                  | grep -E "(FATAL|AndroidRuntime|$PACKAGE_NAME|Exception|Error)" \
+                  | tail -20
+                break
+              fi
+            fi
+
+            sleep 1
+          done
+
+          echo "🛑 Stopping app…"
+          adb shell am force-stop "$PACKAGE_NAME" || true
+
+          echo "🗒️ Killing background logcat capture…"
+          kill $LOGCAT_PID || true
+          sleep 2
+
+          echo "📂 Last 100 lines of /tmp/logcat.txt:"
+          tail -n 100 /tmp/logcat.txt || true
+
+          echo "📸 Listing screenshots:"
+          ls -la screenshots/
+
+          echo "🎉 Workflow completed."
+          EOF
+          chmod +x test_script.sh
+
       - name: Run app on Android Emulator (API 28, pixel_2)
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -61,90 +163,34 @@ jobs:
           arch: x86_64
           profile: pixel_2
           avd-name: pixel_2_api_28
-          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot-save
-          script: |
-            echo "⏳ Waiting for emulator to boot…"
-            adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done;'
-            echo "✅ Emulator booted."
+          ram-size: 4096M
+          heap-size: 1024M
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-animations: true
+          script: ./test_script.sh
+        env:
+          API_BASE_URL: ${{ env.API_BASE_URL }}
 
-            echo "🧹 Clearing previous logcat…"
-            adb logcat -c
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 1
 
-            echo "📋 Starting background logcat → /tmp/logcat.txt…"
-            adb logcat > /tmp/logcat.txt &
-            LOGCAT_PID=$!
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-logs
+          path: /tmp/logcat.txt
+          retention-days: 7
 
-            echo "📦 Installing APK…"
-            adb install -r app/build/outputs/apk/debug/app-debug.apk
-
-            echo "🚀 Launching app…"
-            adb shell "am start -n ${PACKAGE_NAME}/.MainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER"
-
-            echo "⏲️ Running app for 60 seconds with comprehensive interactions…"
-            start_time=$(date +%s)
-
-            while true; do
-              current_time=$(date +%s)
-              elapsed=$((current_time - start_time))
-
-              # Stop after 60s
-              if [ $elapsed -ge 60 ]; then
-                echo "✅ Completed 60-second run!"
-                break
-              fi
-
-              # Every 15 seconds: perform a set of interactions
-              if [ $((elapsed % 15)) -eq 0 ] && [ $elapsed -gt 0 ]; then
-                echo "🤖 Interaction at ${elapsed}s: performing test sequence…"
-                
-                # Tap center of screen
-                adb shell input tap 540 960 || true
-                sleep 1
-                
-                # Swipe from left to right
-                adb shell input swipe 100 960 980 960 200 || true
-                sleep 1
-                
-                # Swipe from top to bottom
-                adb shell input swipe 540 400 540 1600 200 || true
-                sleep 1
-                
-                # Back button press
-                adb shell input keyevent KEYCODE_BACK || true
-                sleep 1
-              fi
-
-              # Every 10 seconds: health check
-              if [ $((elapsed % 10)) -eq 0 ] && [ $elapsed -gt 0 ]; then
-                if adb shell pidof "$PACKAGE_NAME" > /dev/null; then
-                  echo "📱 App is still alive (${elapsed}s/60s)…"
-                  
-                  # Check for ANR
-                  if adb shell dumpsys window windows | grep -q "Application Not Responding"; then
-                    echo "⚠️ ANR detected! Dumping ANR logs:"
-                    adb shell dumpsys dropbox | grep -i anr
-                    break
-                  fi
-                else
-                  echo "💥 App crashed at ${elapsed}s! Dumping crash logs:"
-                  adb logcat -d \
-                    | grep -E "(FATAL|AndroidRuntime|$PACKAGE_NAME|Exception|Error)" \
-                    | tail -20
-                  break
-                fi
-              fi
-
-              sleep 1
-            done
-
-            echo "🛑 Stopping app…"
-            adb shell am force-stop "$PACKAGE_NAME" || true
-
-            echo "🗒️ Killing background logcat capture…"
-            kill $LOGCAT_PID || true
-            sleep 2
-
-            echo "📂 Last 100 lines of /tmp/logcat.txt:"
-            tail -n 100 /tmp/logcat.txt || true
-
-            echo "🎉 Workflow completed."
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-screenshots
+          path: screenshots/
+          retention-days: 7

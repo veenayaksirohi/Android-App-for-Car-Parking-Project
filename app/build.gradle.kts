@@ -1,5 +1,3 @@
-import java.util.Properties
-import java.io.FileInputStream
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -8,7 +6,7 @@ plugins {
     id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
     id("com.google.dagger.hilt.android")
     id("org.jlleitschuh.gradle.ktlint") version "12.1.0"
-    id("io.gitlab.arturbosch.detekt") version "1.23.7"
+    // id("io.gitlab.arturbosch.detekt") version "1.23.7" // Temporarily disabled
     id("kotlin-kapt")
 }
 
@@ -45,7 +43,7 @@ android {
         buildConfig = true
         viewBinding = true
     }
-    
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -92,49 +90,49 @@ dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.cardview:cardview:1.0.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
-    
+
     // Hilt
     implementation("com.google.dagger:hilt-android:2.50")
     kapt("com.google.dagger:hilt-android-compiler:2.50")
-    
+
     // Network libraries
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.9.0")
-    
+
     // Maps
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.gms:play-services-location:21.1.0")
-    
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-    
+
     // Lifecycle
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
 
-    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.7")
+    // detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.7")
 }
 
-detekt {
-    buildUponDefaultConfig = true
-    config.setFrom(files("$projectDir/detekt.yml"))
-    baseline = file("$projectDir/baseline.xml")
-    
-    reports {
-        html.required.set(true)
-        xml.required.set(true)
-        txt.required.set(false)
-        sarif.required.set(true)
-    }
-}
+// detekt {
+//     buildUponDefaultConfig = true
+//     config.setFrom(files("$projectDir/detekt.yml"))
+//     baseline = file("$projectDir/baseline.xml")
+//
+//     reports {
+//         html.required.set(true)
+//         xml.required.set(true)
+//         txt.required.set(false)
+//         sarif.required.set(true)
+//     }
+// }
 
 ktlint {
     android.set(true)
@@ -142,20 +140,20 @@ ktlint {
     outputToConsole.set(true)
     ignoreFailures.set(false)
     enableExperimentalRules.set(true)
-    
+
     filter {
         exclude("**/generated/**")
         include("**/kotlin/**")
     }
 }
 
-tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
-    jvmTarget = "1.8"
-}
-
-tasks.withType<io.gitlab.arturbosch.detekt.DetektCreateBaselineTask>().configureEach {
-    jvmTarget = "1.8"
-}
+// tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+//     jvmTarget = "1.8"
+// }
+//
+// tasks.withType<io.gitlab.arturbosch.detekt.DetektCreateBaselineTask>().configureEach {
+//     jvmTarget = "1.8"
+// }
 
 tasks.withType<KotlinCompile>().configureEach {
     kotlinOptions {

@@ -33,4 +33,14 @@ interface BaseRepository<T, ID> {
      * Delete an item by its ID
      */
     suspend fun deleteById(id: ID)
-} 
+}
+
+abstract class BaseApiRepository {
+    protected suspend fun <T> safeApiCall(apiCall: suspend () -> T): Result<T> {
+        return try {
+            Result.success(apiCall.invoke())
+        } catch (throwable: Throwable) {
+            Result.failure(throwable)
+        }
+    }
+}

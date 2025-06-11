@@ -36,4 +36,4 @@ abstract class BaseViewModel<State, Event> : ViewModel() {
     }
 
     abstract fun handleEvent(event: Event)
-} 
+}

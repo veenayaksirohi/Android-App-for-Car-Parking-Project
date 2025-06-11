@@ -1,115 +1,146 @@
-# Car Parking Android App
+# Car Parking App
 
-
-A modern Android application for managing car parking spaces, built with Kotlin and following clean architecture principles.
+A modern Android application for managing car parking spaces with real-time availability tracking and Google Maps integration.
 
 ## Features
 
-- User authentication and profile management
 - Real-time parking space availability
-- Parking space booking and management
-- Payment integration
-- Offline support
-- Push notifications
+- Google Maps integration for location-based parking
+- User authentication and profile management
+- Parking history and payment tracking
+- Push notifications for parking status updates
 
 ## Tech Stack
 
 - **Language**: Kotlin
-- **Architecture**: Clean Architecture with MVVM
+- **Architecture**: MVVM
 - **Dependency Injection**: Hilt
-- **Asynchronous**: Kotlin Coroutines & Flow
+- **Networking**: Retrofit + OkHttp
 - **Database**: Room
-- **Networking**: Retrofit & OkHttp
 - **Image Loading**: Coil
-- **UI**: Jetpack Compose
-- **Testing**: JUnit, Mockito, Espresso
+- **Testing**: JUnit, Espresso, Mockito
+- **CI/CD**: GitHub Actions
 
-## Project Structure
+## Prerequisites
 
-The project follows a feature-based architecture with clean architecture principles:
+- Android Studio Hedgehog | 2023.1.1 or later
+- JDK 17 or later
+- Android SDK 34 or later
+- Google Maps API Key
+- Git
 
-```
-com.example.carparking/
-├── core/                    # Core functionality and utilities
-│   ├── di/                 # Dependency injection modules
-│   ├── network/            # Network related code
-│   ├── database/           # Local database
-│   └── utils/              # Utility classes
-│
-├── features/               # Feature modules
-│   ├── auth/              # Authentication feature
-│   ├── parking/          # Parking management feature
-│   └── profile/          # User profile feature
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Android Studio Arctic Fox or newer
-- JDK 11 or newer
-- Android SDK 21 or newer
-
-### Installation
+## Local Development Setup
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/car-parking-android.git
+   git clone https://github.com/yourusername/car-parking-app.git
+   cd car-parking-app
    ```
 
-2. Open the project in Android Studio
+2. Create a `local.properties` file in the root directory:
+   ```properties
+   sdk.dir=/path/to/your/Android/Sdk
+   MAPS_API_KEY=your_google_maps_api_key
+   ```
 
-3. Sync the project with Gradle files
+3. Open the project in Android Studio and let it sync
 
 4. Run the app on an emulator or physical device
 
-## Architecture
+## CI/CD Setup
 
-The app follows Clean Architecture principles with three main layers:
+The project uses GitHub Actions for continuous integration and deployment. The workflow is defined in `.github/workflows/android-test.yml`.
 
-1. **Presentation Layer**
-   - UI components (Activities, Fragments, Composables)
-   - ViewModels
-   - UI State management
+### Required Secrets
 
-2. **Domain Layer**
-   - Use cases
-   - Domain models
-   - Repository interfaces
+Add the following secrets in your GitHub repository settings (Settings → Secrets and variables → Actions):
 
-3. **Data Layer**
-   - Repositories implementation
-   - Data sources (local and remote)
-   - Data models
+- `MAPS_API_KEY`: Your Google Maps API key
+
+### Artifacts
+
+After a successful CI run, the following artifacts are generated:
+- Debug APK
+- Test reports
+- Screenshots (for UI tests)
+
+## Project Structure
+
+```
+app/
+├── src/
+│   ├── main/
+│   │   ├── java/com/example/carparkingapp/
+│   │   │   ├── core/
+│   │   │   │   ├── architecture/
+│   │   │   │   ├── di/
+│   │   │   │   ├── network/
+│   │   │   │   └── utils/
+│   │   │   └── features/
+│   │   │       ├── auth/
+│   │   │       ├── parking/
+│   │   │       └── profile/
+│   │   └── res/
+│   └── test/
+└── build.gradle.kts
+```
 
 ## Testing
 
-The project includes different types of tests:
+1. Unit Tests:
+   ```bash
+   ./gradlew test
+   ```
 
-- **Unit Tests**: For business logic and use cases
-- **Integration Tests**: For repository and data source testing
-- **UI Tests**: For UI components and user flows
+2. Instrumented Tests:
+   ```bash
+   ./gradlew connectedAndroidTest
+   ```
 
-Run tests using:
-```bash
-./gradlew test        # Unit tests
-./gradlew connectedAndroidTest  # Instrumented tests
-```
+3. UI Tests:
+   ```bash
+   ./gradlew connectedAndroidTest -PtestType=ui
+   ```
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## Code Style
+
+Please refer to [CODE_STYLE.md](CODE_STYLE.md) for detailed coding standards and best practices.
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Build Failures**
+   - Clean and rebuild the project
+   - Invalidate caches and restart Android Studio
+   - Check Gradle version compatibility
+
+2. **API Key Issues**
+   - Verify `local.properties` has correct API key
+   - Check API key restrictions in Google Cloud Console
+   - Ensure API key has required permissions
+
+3. **Device Connection**
+   - Enable USB debugging
+   - Install proper USB drivers
+   - Try different USB ports/cables
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Contact
+## Acknowledgments
 
-Your Name - your.email@example.com
-
-Project Link: [https://github.com/yourusername/car-parking-android](https://github.com/yourusername/car-parking-android)
+- Google Maps Platform
+- Android Jetpack
+- Kotlin Coroutines
+- Hilt
+- Retrofit

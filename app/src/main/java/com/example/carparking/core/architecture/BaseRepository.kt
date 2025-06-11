@@ -33,7 +33,7 @@ interface BaseRepository<T, ID> {
      * Delete an item by its ID
      */
     suspend fun deleteById(id: ID)
-}
+} 
 
 abstract class BaseApiRepository {
     protected suspend fun <T> safeApiCall(apiCall: suspend () -> T): Result<T> {

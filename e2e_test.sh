@@ -13,5 +13,10 @@ adb pull /sdcard/app_launch.png screenshots/app_launch.png
 # At the end, zip all artifacts (from inside Android-App-for-Car-Parking-Project)
 echo "🎉 E2E test script completed."
 
-# Only zip files that exist to avoid errors
-zip -r e2e-artifacts.zip test-report.html pytest.log appium.log logcat.txt screenshots e2e_recording.mp4 2>/dev/null || echo "Some files may be missing, but continuing"
+# Ensure all expected artifact files/directories exist so zip always creates the artifact
+# (This prevents missing artifact errors in CI)
+touch pytest.log appium.log logcat.txt test-report.html e2e_recording.mp4
+mkdir -p screenshots
+
+# Always create the zip, even if some files are empty
+zip -r e2e-artifacts.zip test-report.html pytest.log appium.log logcat.txt screenshots e2e_recording.mp4 || echo "Some files may be missing, but continuing"

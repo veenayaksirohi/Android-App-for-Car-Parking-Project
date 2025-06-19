@@ -1,5 +1,5 @@
 # Run pytest and capture both HTML report and logs
-python -m pytest -v --html=./test-report.html --self-contained-html | tee pytest.log || {
+python -m pytest -v --html=./test-report.html --self-contained-html --log-cli-level=INFO --log-file=pytest.log || {
   echo "⚠️ Tests completed with issues"
 }
 

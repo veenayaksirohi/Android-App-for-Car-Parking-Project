@@ -42,6 +42,7 @@ class TestParkingApp:
         options.app_package = 'com.example.carparkingapp'
         options.app_activity = 'com.example.carparkingapp.MainActivity'
         options.implicit_wait_timeout = 10000 # milliseconds
+        options.set_capability('uiautomator2ServerInstallTimeout', 60000)
 
         # Connect to Appium server
         # Update the URL if your Appium server is running on a different host or port

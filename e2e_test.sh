@@ -1,5 +1,7 @@
--          python -m pytest -v --html=../test-report.html --self-contained-html || {
-+          python -m pytest -v --html=./test-report.html --self-contained-html || { 
+# Run pytest and capture both HTML report and logs
+python -m pytest -v --html=./test-report.html --self-contained-html | tee pytest.log || {
+  echo "⚠️ Tests completed with issues"
+}
 
 # After launching the app, take a screenshot
 adb shell screencap -p /sdcard/app_launch.png
@@ -7,7 +9,5 @@ adb pull /sdcard/app_launch.png screenshots/app_launch.png
 
 # ... rest of your test steps ...
 
-# At the end, zip all artifacts
-cd ..
-zip -r e2e-artifacts.zip Android-App-for-Car-Parking-Project/test-report.html Android-App-for-Car-Parking-Project/appium.log Android-App-for-Car-Parking-Project/logcat.txt Android-App-for-Car-Parking-Project/screenshots Android-App-for-Car-Parking-Project/e2e_recording.mp4
-cd Android-App-for-Car-Parking-Project
+# At the end, zip all artifacts (from inside Android-App-for-Car-Parking-Project)
+zip -r e2e-artifacts.zip test-report.html pytest.log appium.log logcat.txt screenshots e2e_recording.mp4

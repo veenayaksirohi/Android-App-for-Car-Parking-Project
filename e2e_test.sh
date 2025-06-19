@@ -15,8 +15,11 @@ echo "🎉 E2E test script completed."
 
 # Ensure all expected artifact files/directories exist so zip always creates the artifact
 # (This prevents missing artifact errors in CI)
-touch pytest.log appium.log logcat.txt test-report.html e2e_recording.mp4
+touch test-report.html pytest.log appium.log logcat.txt e2e_recording.mp4
 mkdir -p screenshots
 
-# Always create the zip, even if some files are empty
+# Move into the Android project folder for zipping
+cd "$(dirname "$0")"
+
+# Now zip from inside the project directory
 zip -r e2e-artifacts.zip test-report.html pytest.log appium.log logcat.txt screenshots e2e_recording.mp4 || echo "Some files may be missing, but continuing"

@@ -45,7 +45,7 @@ class TestParkingApp:
 
         # Connect to Appium server
         # Update the URL if your Appium server is running on a different host or port
-        driver = webdriver.Remote('http://127.0.0.1:4723', options=options)
+        driver = webdriver.Remote('http://127.0.0.1:4723/wd/hub', options=options)
 
         yield driver
 

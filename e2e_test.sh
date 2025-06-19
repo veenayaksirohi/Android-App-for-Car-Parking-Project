@@ -18,5 +18,8 @@ echo "🎉 E2E test script completed."
 touch test-report.html pytest.log appium.log logcat.txt e2e_recording.mp4
 mkdir -p screenshots
 
+echo "Listing files before zipping:"
+ls -l
+
 # Always create the zip, even if some files are empty
 zip -r e2e-artifacts.zip test-report.html pytest.log appium.log logcat.txt screenshots e2e_recording.mp4 || echo "Some files may be missing, but continuing"

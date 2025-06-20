@@ -1,6 +1,6 @@
 # Run pytest and capture both HTML report and logs
 mkdir -p screenshots
-python -m pytest -v --html=./test-report.html --self-contained-html --log-cli-level=INFO --log-file=pytest.log || {
+python -m pytest -v --html=./test-report.html --self-contained-html --log-cli-level=INFO --log-file=../pytest.log || {
   echo "⚠️ Tests completed with issues"
 }
 
@@ -10,25 +10,32 @@ adb pull /sdcard/app_launch.png screenshots/app_launch.png
 
 # ... rest of your test steps ...
 
-# At the end, zip all artifacts (from inside Android-App-for-Car-Parking-Project)
-echo "🎉 E2E test script completed."
+# At the end, move/copy all artifacts to a root-level artifacts directory
+ARTIFACTS_DIR=../artifacts
+mkdir -p "$ARTIFACTS_DIR"
 
-# Ensure all expected artifact files/directories exist so zip always creates the artifact
-mkdir -p screenshots
-# Add any other directories you expect artifacts in here
-
-touch test-report.html pytest.log appium.log logcat.txt e2e_recording.mp4 || true
+cp -f test-report.html "$ARTIFACTS_DIR/" || true
+cp -f pytest.log "$ARTIFACTS_DIR/" || true
+cp -f appium.log "$ARTIFACTS_DIR/" || true
+cp -f logcat.txt "$ARTIFACTS_DIR/" || true
+cp -f e2e_recording.mp4 "$ARTIFACTS_DIR/" || true
+cp -rf screenshots "$ARTIFACTS_DIR/" || true
 
 # Ensure logs are flushed
 sleep 2
 sync
-echo "Appium log preview:"
-cat appium.log || true
-echo "Pytest log preview:"
-cat pytest.log || true
 
-# Always create the zip, even if some files are empty
-zip -r e2e-artifacts.zip test-report.html pytest.log appium.log logcat.txt screenshots e2e_recording.mp4 || echo "Some files may be missing, but continuing"
+# Preview logs
+cat "$ARTIFACTS_DIR/appium.log" || true
+cat "$ARTIFACTS_DIR/pytest.log" || true
+
+# List all files in artifacts directory for verification
+ls -l "$ARTIFACTS_DIR" || true
+
+# Zip everything in artifacts directory
+cd "$ARTIFACTS_DIR"
+zip -r ../e2e-artifacts.zip . || echo "Some files may be missing, but continuing"
+cd ..
 
 # Ensure the zip exists for CI artifact upload
 if [ ! -f e2e-artifacts.zip ]; then

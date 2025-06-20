@@ -20,6 +20,15 @@ mkdir -p screenshots
 
 touch test-report.html pytest.log appium.log logcat.txt e2e_recording.mp4 || true
 
+# Ensure appium.log and pytest.log are flushed
+sleep 2
+sync
+echo "Appium log preview:"
+cat appium.log || true
+
+echo "Pytest log preview:"
+cat pytest.log || true
+
 # Always create the zip, even if some files are empty
 zip -r e2e-artifacts.zip test-report.html pytest.log appium.log logcat.txt screenshots e2e_recording.mp4 || echo "Some files may be missing, but continuing"
 

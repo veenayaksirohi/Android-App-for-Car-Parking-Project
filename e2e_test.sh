@@ -15,11 +15,10 @@ echo "🎉 E2E test script completed."
 
 # Ensure all expected artifact files/directories exist so zip always creates the artifact
 # (This prevents missing artifact errors in CI)
-touch test-report.html pytest.log appium.log logcat.txt e2e_recording.mp4
 mkdir -p screenshots
+# Add any other directories you expect artifacts in here
 
-echo "Listing files before zipping:"
-ls -l
+touch test-report.html pytest.log appium.log logcat.txt e2e_recording.mp4 || true
 
 # Always create the zip, even if some files are empty
-zip -r e2e-artifacts.zip test-report.html pytest.log appium.log logcat.txt screenshots e2e_recording.mp4 || echo "Some files may be missing, but continuing"
+zip -r ../e2e-artifacts.zip test-report.html pytest.log appium.log logcat.txt screenshots e2e_recording.mp4 || echo "Some files may be missing, but continuing"

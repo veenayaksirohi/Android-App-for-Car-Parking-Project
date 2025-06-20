@@ -29,13 +29,12 @@ sync
 # List all files in artifacts directory for verification
 ls -l "$ARTIFACTS_DIR" || true
 
-# Zip everything in artifacts directory at the root
-cd "$ARTIFACTS_DIR"
-zip -r ../../e2e-artifacts.zip . || echo "Some files may be missing, but continuing"
-cd -
+# Always create the zip in the root directory
+zip -r ../e2e-artifacts.zip app/build/reports/tests/testDebugUnitTest/index.html appium.log logcat.txt screenshots/ e2e_recording.mp4 || echo "Zip command failed but we continue."
 
-# Ensure the zip exists for CI artifact upload
-if [ ! -f e2e-artifacts.zip ]; then
-  echo "Creating empty artifact zip to ensure upload step always succeeds."
+# Fallback: ensure zip exists even if something failed
+if [ ! -f ../e2e-artifacts.zip ]; then
+  cd ..
   zip -r e2e-artifacts.zip .gitkeep || true
+  cd -
 fi

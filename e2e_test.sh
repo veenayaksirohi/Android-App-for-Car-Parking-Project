@@ -1,40 +1,96 @@
-# Run pytest and capture both HTML report and logs
+#!/bin/bash
+set -e
+
+echo "🔍 Checking emulator readiness..."
+# Wait for emulator to be fully ready
+adb wait-for-device
+
+# Wait for boot to complete
+echo "⏳ Waiting for emulator to boot completely..."
+timeout 300 bash -c 'until [[ $(adb shell getprop sys.boot_completed 2>/dev/null) == "1" ]]; do sleep 2; done' || {
+  echo "❌ Emulator failed to boot within 5 minutes"
+  exit 1
+}
+echo "✅ Emulator booted successfully."
+
+# Disable animations for faster testing
+echo "🎬 Disabling animations..."
+adb shell "settings put global window_animation_scale 0.0"
+adb shell "settings put global transition_animation_scale 0.0"
+adb shell "settings put global animator_duration_scale 0.0"
+
+# Clear logcat and start capturing
+adb logcat -c
 mkdir -p screenshots
-python -m pytest -v --html=./test-report.html --self-contained-html --log-cli-level=INFO --log-file=../pytest.log || {
+
+echo "📋 Starting logcat capture..."
+adb logcat > logcat.txt &
+LOGCAT_PID=$!
+
+echo "🎥 Starting screen recording..."
+adb shell screenrecord --time-limit=180 /sdcard/e2e_recording.mp4 &
+SCREENRECORD_PID=$!
+
+# Give some time for setup
+sleep 5
+
+echo "📦 Installing APK..."
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+
+echo "🚀 Launching app..."
+adb shell "am start -n ${PACKAGE_NAME}/.MainActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER"
+
+# Wait for app to load and take initial screenshot
+sleep 10
+adb shell screencap -p /sdcard/app_launch.png
+adb pull /sdcard/app_launch.png screenshots/app_launch.png || true
+
+echo "🧪 Running Appium Python tests..."
+cd tests
+python -m pytest -v --html=../test-report.html --self-contained-html --log-cli-level=INFO --log-file=../pytest.log || {
   echo "⚠️ Tests completed with issues"
 }
+cd ..
 
-# After launching the app, take a screenshot
-adb shell screencap -p /sdcard/app_launch.png
-adb pull /sdcard/app_launch.png screenshots/app_launch.png
+echo "🛑 Stopping app..."
+adb shell am force-stop "$PACKAGE_NAME" || true
 
-# ... rest of your test steps ...
+echo "🎥 Pulling screen recording..."
+adb pull /sdcard/e2e_recording.mp4 screenshots/ || true
 
-# Define the absolute path to the root-level artifacts directory
-ARTIFACTS_DIR="$(pwd)/../artifacts"
-mkdir -p "$ARTIFACTS_DIR"
+echo "🗒️ Stopping logcat..."
+kill $LOGCAT_PID || true
 
-# Copy all relevant artifacts to the root-level artifacts directory
-cp -f test-report.html "$ARTIFACTS_DIR/" || true
-cp -f pytest.log "$ARTIFACTS_DIR/" || true
-cp -f appium.log "$ARTIFACTS_DIR/" || true
-cp -f logcat.txt "$ARTIFACTS_DIR/" || true
-cp -f e2e_recording.mp4 "$ARTIFACTS_DIR/" || true
-cp -rf screenshots "$ARTIFACTS_DIR/" || true
-
-# Ensure logs are flushed
+# Wait for processes to clean up
 sleep 2
-sync
+
+# Centralize all artifacts in root-level artifacts directory
+cd ..
+mkdir -p artifacts/screenshots
+cp Android-App-for-Car-Parking-Project/appium.log artifacts/ || touch artifacts/appium.log
+cp Android-App-for-Car-Parking-Project/logcat.txt artifacts/ || touch artifacts/logcat.txt
+cp Android-App-for-Car-Parking-Project/test-report.html artifacts/ || touch artifacts/test-report.html
+cp Android-App-for-Car-Parking-Project/pytest.log artifacts/ || touch artifacts/pytest.log
+cp Android-App-for-Car-Parking-Project/screenshots/* artifacts/screenshots/ 2>/dev/null || true
+cp Android-App-for-Car-Parking-Project/e2e_recording.mp4 artifacts/ 2>/dev/null || true
 
 # List all files in artifacts directory for verification
-ls -l "$ARTIFACTS_DIR" || true
+ls -l artifacts/ || true
+ls -l artifacts/screenshots/ || true
 
 # Always create the zip in the root directory
-zip -r ../e2e-artifacts.zip app/build/reports/tests/testDebugUnitTest/index.html appium.log logcat.txt screenshots/ e2e_recording.mp4 || echo "Zip command failed but we continue."
+zip -r e2e-artifacts.zip artifacts/ || {
+  echo "Failed to create zip with artifacts, creating minimal zip"
+  mkdir -p minimal-artifacts
+  echo "Test completed at $(date)" > minimal-artifacts/test-summary.txt
+  zip -r e2e-artifacts.zip minimal-artifacts/
+}
 
-# Fallback: ensure zip exists even if something failed
-if [ ! -f ../e2e-artifacts.zip ]; then
-  cd ..
-  zip -r e2e-artifacts.zip .gitkeep || true
-  cd -
+# Verify the zip file exists
+if [ -f "e2e-artifacts.zip" ]; then
+  echo "✅ e2e-artifacts.zip created successfully"
+  ls -la e2e-artifacts.zip
+else
+  echo "❌ Failed to create e2e-artifacts.zip"
+  exit 1
 fi

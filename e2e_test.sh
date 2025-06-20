@@ -14,18 +14,16 @@ adb pull /sdcard/app_launch.png screenshots/app_launch.png
 echo "🎉 E2E test script completed."
 
 # Ensure all expected artifact files/directories exist so zip always creates the artifact
-# (This prevents missing artifact errors in CI)
 mkdir -p screenshots
 # Add any other directories you expect artifacts in here
 
 touch test-report.html pytest.log appium.log logcat.txt e2e_recording.mp4 || true
 
-# Ensure appium.log and pytest.log are flushed
+# Ensure logs are flushed
 sleep 2
 sync
 echo "Appium log preview:"
 cat appium.log || true
-
 echo "Pytest log preview:"
 cat pytest.log || true
 

@@ -21,12 +21,10 @@ mkdir -p screenshots
 touch test-report.html pytest.log appium.log logcat.txt e2e_recording.mp4 || true
 
 # Always create the zip, even if some files are empty
-zip -r ../e2e-artifacts.zip test-report.html pytest.log appium.log logcat.txt screenshots e2e_recording.mp4 || echo "Some files may be missing, but continuing"
+zip -r e2e-artifacts.zip test-report.html pytest.log appium.log logcat.txt screenshots e2e_recording.mp4 || echo "Some files may be missing, but continuing"
 
 # Ensure the zip exists for CI artifact upload
-if [ ! -f ../e2e-artifacts.zip ]; then
+if [ ! -f e2e-artifacts.zip ]; then
   echo "Creating empty artifact zip to ensure upload step always succeeds."
-  cd ..
   zip -r e2e-artifacts.zip .gitkeep || true
-  cd -
 fi

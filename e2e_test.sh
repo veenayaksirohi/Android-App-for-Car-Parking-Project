@@ -64,29 +64,38 @@ kill $LOGCAT_PID || true
 # Wait for processes to clean up
 sleep 2
 
-# Centralize all artifacts in root-level artifacts directory
+echo "🗂️ Centralizing all artifacts in root-level artifacts directory at: $(pwd)/artifacts"
 cd ..
 mkdir -p artifacts/screenshots
+echo "Copying logs and reports to artifacts directory at: $(pwd)/artifacts"
 cp Android-App-for-Car-Parking-Project/appium.log artifacts/ || touch artifacts/appium.log
+echo "Copied appium.log to $(pwd)/artifacts/appium.log"
 cp Android-App-for-Car-Parking-Project/logcat.txt artifacts/ || touch artifacts/logcat.txt
+echo "Copied logcat.txt to $(pwd)/artifacts/logcat.txt"
 cp Android-App-for-Car-Parking-Project/test-report.html artifacts/ || touch artifacts/test-report.html
+echo "Copied test-report.html to $(pwd)/artifacts/test-report.html"
 cp Android-App-for-Car-Parking-Project/pytest.log artifacts/ || touch artifacts/pytest.log
+echo "Copied pytest.log to $(pwd)/artifacts/pytest.log"
 cp Android-App-for-Car-Parking-Project/screenshots/* artifacts/screenshots/ 2>/dev/null || true
+echo "Copied screenshots to $(pwd)/artifacts/screenshots/"
 cp Android-App-for-Car-Parking-Project/e2e_recording.mp4 artifacts/ 2>/dev/null || true
+echo "Copied e2e_recording.mp4 to $(pwd)/artifacts/e2e_recording.mp4"
 
 # List all files in artifacts directory for verification
+echo "📋 Listing all files in artifacts directory:"
 ls -l artifacts/ || true
 ls -l artifacts/screenshots/ || true
 
+echo "📦 Creating e2e-artifacts.zip in root directory..."
 # Always create the zip in the root directory
 zip -r e2e-artifacts.zip artifacts/ || {
-  echo "Failed to create zip with artifacts, creating minimal zip"
+  echo "❌ Failed to create zip with artifacts, creating minimal zip"
   mkdir -p minimal-artifacts
   echo "Test completed at $(date)" > minimal-artifacts/test-summary.txt
   zip -r e2e-artifacts.zip minimal-artifacts/
 }
 
-# Verify the zip file exists
+echo "🔍 Verifying the zip file exists..."
 if [ -f "e2e-artifacts.zip" ]; then
   echo "✅ e2e-artifacts.zip created successfully"
   ls -la e2e-artifacts.zip
@@ -94,3 +103,7 @@ else
   echo "❌ Failed to create e2e-artifacts.zip"
   exit 1
 fi
+
+echo "📂 Listing files in root directory before exit:"
+ls -l
+cd Android-App-for-Car-Parking-Project

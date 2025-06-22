@@ -1,5 +1,7 @@
 import pytest
 import time
+import uuid
+import random
 from appium import webdriver
 from appium.webdriver.common.appiumby import AppiumBy
 from appium.options.android import UiAutomator2Options
@@ -14,7 +16,6 @@ class TestParkingApp:
 
     # Test credentials for new registration
     REGISTER_NAME = "New User"
-    REGISTER_EMAIL = "new.user@example.com"
     REGISTER_PASSWORD = "new_secret123"
     REGISTER_PHONE = "0987654321"
     REGISTER_ADDRESS = "456 New St"
@@ -32,6 +33,14 @@ class TestParkingApp:
             pytest.fail(f"No Such Element: Element with locator {locator} not found.")
         except Exception as e:
             pytest.fail(f"Error finding element {locator}: {str(e)}")
+
+    def generate_unique_email(self):
+        """Generate a unique email address for registration tests."""
+        return f"testuser_{uuid.uuid4().hex[:8]}@example.com"
+
+    def generate_unique_phone(self):
+        """Generate a unique phone number for registration tests."""
+        return f"9{random.randint(100000000, 999999999)}"
 
     @pytest.fixture(scope="class")
     def driver(self):
@@ -148,16 +157,15 @@ class TestParkingApp:
     def test_registration_after_app_launch(self, driver):
         """Test registration flow immediately after launching the app."""
         try:
-            time.sleep(2)  # Wait for app to launch
-
             # Click the "Let's Get Started" button to go to Register Form
             start_button = self.wait_for_element(driver, (AppiumBy.ID, 'button_start'))
             start_button.click()
-            time.sleep(1)  # Wait for transition to Register Form
 
-            # Register a new user
-            self.register_user(driver, self.REGISTER_NAME, self.REGISTER_EMAIL,
-                               self.REGISTER_PASSWORD, self.REGISTER_PHONE, self.REGISTER_ADDRESS)
+            # Register a new user with a unique email and phone number
+            unique_email = self.generate_unique_email()
+            unique_phone = self.generate_unique_phone()
+            self.register_user(driver, self.REGISTER_NAME, unique_email,
+                               self.REGISTER_PASSWORD, unique_phone, self.REGISTER_ADDRESS)
             time.sleep(2)  # Wait after registration
 
             # Optionally, verify registration success (e.g., by checking for a toast, dialog, or navigation)
@@ -199,9 +207,11 @@ class TestParkingApp:
             start_button.click()
             time.sleep(1) # Wait for transition to Register Form
 
-            # 2. Register a new user
-            self.register_user(driver, self.REGISTER_NAME, self.REGISTER_EMAIL,
-                               self.REGISTER_PASSWORD, self.REGISTER_PHONE, self.REGISTER_ADDRESS)
+            # 2. Register a new user with a unique email and phone number
+            unique_email = self.generate_unique_email()
+            unique_phone = self.generate_unique_phone()
+            self.register_user(driver, self.REGISTER_NAME, unique_email,
+                               self.REGISTER_PASSWORD, unique_phone, self.REGISTER_ADDRESS)
             time.sleep(2) # Wait after registration
 
             # 3. Go back to the main screen after registration (assuming it stays on register screen or goes to a confirmation)
@@ -219,7 +229,7 @@ class TestParkingApp:
             time.sleep(1) # Wait for transition to Login screen
 
             # 5. Login with the newly registered user
-            self.login(driver, self.REGISTER_EMAIL, self.REGISTER_PASSWORD)
+            self.login(driver, unique_email, self.REGISTER_PASSWORD)
             time.sleep(2) # Wait for login completion
 
             # Verify successful login after the entire flow (already handled in login helper, but good to re-emphasize)

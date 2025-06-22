@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+set -x  # Enable command tracing for debugging
 
 # Print working directory and environment
 pwd
@@ -15,6 +16,10 @@ fi
 
 # For debugging, print CI_ROOT
 echo "[DEBUG] CI_ROOT resolved as: $CI_ROOT"
+
+# Show running processes before starting emulator
+echo "[DEBUG] Processes before emulator startup:"
+ps aux || true
 
 echo "🔍 Checking emulator readiness..."
 # Wait for emulator to be fully ready
@@ -67,6 +72,10 @@ adb shell screencap -p /sdcard/app_launch.png
 adb pull /sdcard/app_launch.png screenshots/app_launch.png || true
 ls -l screenshots/
 
+# Show running processes before installing APK
+echo "[DEBUG] Processes before APK install:"
+ps aux | grep -E "(appium|adb)" || true
+
 echo "🧪 Running Appium Python tests..."
 cd tests
 python -m pytest -v --html=../test-report.html --self-contained-html --log-cli-level=INFO --log-file=../pytest.log || {
@@ -74,10 +83,21 @@ python -m pytest -v --html=../test-report.html --self-contained-html --log-cli-l
 }
 cd ..
 
+# Show running processes before running tests
+echo "[DEBUG] Processes before pytest:"
+ps aux | grep -E "(appium|adb)" || true
+
 ls -l
 
 echo "🛑 Stopping app..."
 adb shell am force-stop "$PACKAGE_NAME" || true
+
+# After running tests, print exit code
+echo "[DEBUG] Pytest exit code: $?"
+
+# Show running processes before stopping app
+echo "[DEBUG] Processes before stopping app:"
+ps aux | grep -E "(appium|adb)" || true
 
 echo "🎥 Pulling screen recording..."
 adb pull /sdcard/e2e_recording.mp4 screenshots/ || true

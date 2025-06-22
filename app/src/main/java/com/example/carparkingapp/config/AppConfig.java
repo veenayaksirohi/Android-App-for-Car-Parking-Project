@@ -8,7 +8,7 @@ public class AppConfig {
     private static final String KEY_API_BASE_URL = "api_base_url";
     private static AppConfig instance;
     private final SharedPreferences preferences;
-    public static final String DEFAULT_API_BASE_URL = "http://192.168.73.191:5000/";
+    public static final String DEFAULT_API_BASE_URL = "http://10.0.2.2:5000/";
 
     private AppConfig(Context context) {
         preferences = context.getApplicationContext()
@@ -35,4 +35,4 @@ public class AppConfig {
     public void setApiBaseUrl(String baseUrl) {
         preferences.edit().putString(KEY_API_BASE_URL, baseUrl).apply();
     }
-} 
+}

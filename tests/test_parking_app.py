@@ -54,8 +54,8 @@ class TestParkingApp:
         options.set_capability('uiautomator2ServerInstallTimeout', 60000)
 
         # Connect to Appium server
-        # Update the URL if your Appium server is running on a different host or port
-        driver = webdriver.Remote('http://127.0.0.1:4723', options=options)
+        # Always use /wd/hub as the base path for compatibility
+        driver = webdriver.Remote('http://127.0.0.1:4723/wd/hub', options=options)
 
         yield driver
 

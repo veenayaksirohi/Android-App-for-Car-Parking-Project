@@ -117,13 +117,17 @@ ARTIFACTS_DIR="$CI_ROOT/artifacts"
 mkdir -p "$ARTIFACTS_DIR/screenshots"
 
 # Copy logs and reports
-for f in appium.log logcat.txt test-report.html pytest.log; do
-  if [ -f "Android-App-for-Car-Parking-Project/$f" ]; then
-    cp "Android-App-for-Car-Parking-Project/$f" "$ARTIFACTS_DIR/" && echo "Copied $f to $ARTIFACTS_DIR/$f"
-  elif [ -f "$f" ]; then
-    cp "$f" "$ARTIFACTS_DIR/" && echo "Copied $f to $ARTIFACTS_DIR/$f"
+for f in appium.log pytest.log logcat.txt test-report.html; do
+  # Try project root, then Android-App-for-Car-Parking-Project/
+  if [ -f "$CI_ROOT/$f" ]; then
+    cp "$CI_ROOT/$f" "$ARTIFACTS_DIR/"
+    echo "Copied $f from root to $ARTIFACTS_DIR/$f"
+  elif [ -f "$CI_ROOT/Android-App-for-Car-Parking-Project/$f" ]; then
+    cp "$CI_ROOT/Android-App-for-Car-Parking-Project/$f" "$ARTIFACTS_DIR/"
+    echo "Copied $f from Android-App-for-Car-Parking-Project to $ARTIFACTS_DIR/$f"
   else
-    touch "$ARTIFACTS_DIR/$f" && echo "Created empty $ARTIFACTS_DIR/$f"
+    touch "$ARTIFACTS_DIR/$f"
+    echo "Created empty $ARTIFACTS_DIR/$f"
   fi
 done
 

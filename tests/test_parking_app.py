@@ -46,7 +46,7 @@ class TestParkingApp:
 
         # Connect to Appium server
         # Update the URL if your Appium server is running on a different host or port
-        driver = webdriver.Remote('http://127.0.0.1:4723/wd/hub', options=options)
+        driver = webdriver.Remote('http://127.0.0.1:4723', options=options)
 
         yield driver
 
@@ -145,6 +145,27 @@ class TestParkingApp:
         except Exception as e:
             pytest.fail(f"App launch test failed: {str(e)}")
 
+    def test_registration_after_app_launch(self, driver):
+        """Test registration flow immediately after launching the app."""
+        try:
+            time.sleep(2)  # Wait for app to launch
+
+            # Click the "Let's Get Started" button to go to Register Form
+            start_button = self.wait_for_element(driver, (AppiumBy.ID, 'button_start'))
+            start_button.click()
+            time.sleep(1)  # Wait for transition to Register Form
+
+            # Register a new user
+            self.register_user(driver, self.REGISTER_NAME, self.REGISTER_EMAIL,
+                               self.REGISTER_PASSWORD, self.REGISTER_PHONE, self.REGISTER_ADDRESS)
+            time.sleep(2)  # Wait after registration
+
+            # Optionally, verify registration success (e.g., by checking for a toast, dialog, or navigation)
+            # This can be customized based on your app's behavior after registration
+
+        except Exception as e:
+            pytest.fail(f"Registration after app launch failed: {str(e)}")
+
     def test_login_with_provided_credentials(self, driver):
         """Test login functionality using the pre-defined TEST_EMAIL and TEST_PASSWORD."""
         try:
@@ -184,7 +205,8 @@ class TestParkingApp:
             time.sleep(2) # Wait after registration
 
             # 3. Go back to the main screen after registration (assuming it stays on register screen or goes to a confirmation)
-            driver.back() # This should take us back to the main launch screen
+            # This should take us back to the main launch screen
+            driver.back() 
             time.sleep(2) # Wait for transition back
 
             # 4. Click "Let's Get Started" again to go to Register Form, then click "Sign In"
@@ -206,4 +228,4 @@ class TestParkingApp:
             assert search_container.is_displayed() and map_search.is_displayed(), "Final login verification failed: Dashboard not displayed."
 
         except Exception as e:
-            pytest.fail(f"Full registration and login flow failed: {str(e)}") 
+            pytest.fail(f"Full registration and login flow failed: {str(e)}")

@@ -99,6 +99,13 @@ echo "[DEBUG] Pytest exit code: $?"
 echo "[DEBUG] Processes before stopping app:"
 ps aux | grep -E "(appium|adb)" || true
 
+echo "🛑 Stopping screen recording gracefully..."
+if [ ! -z "$SCREENRECORD_PID" ]; then
+  kill -SIGINT $SCREENRECORD_PID || echo "Failed to send SIGINT to screenrecord."
+  wait $SCREENRECORD_PID 2>/dev/null || echo "Screenrecord process already finished."
+fi
+sleep 5 # Give time for filesystem to sync.
+
 echo "🎥 Pulling screen recording..."
 adb pull /sdcard/e2e_recording.mp4 screenshots/ || true
 ls -l screenshots/

@@ -77,76 +77,80 @@ public class LoginActivity extends AppCompatActivity {
         apiInterface.loginUser(loginRequest).enqueue(new Callback<LoginResponse>() {
             @Override
             public void onResponse(@NonNull Call<LoginResponse> call, @NonNull Response<LoginResponse> response) {
-                hideProgressDialog();
-                Log.d("LoginActivity", "Received login response: " + response.code());
-                
-                if (response.isSuccessful() && response.body() != null) {
-                    LoginResponse result = response.body();
-                    String message = result.getMessage();
-                    String token = result.getToken();
+                runOnUiThread(() -> {
+                    hideProgressDialog();
+                    Log.d("LoginActivity", "Received login response: " + response.code());
                     
-                    // Log response details for debugging
-                    Log.d("LoginActivity", "Response message: " + message);
-                    Log.d("LoginActivity", "Token present: " + (token != null && !token.isEmpty()));
-                    
-                    // Check for failure message first
-                    if (message != null && message.toLowerCase().contains("failed")) {
-                        showError(message);
-                        return;
-                    }
-                    
-                    // Process successful login
-                    if (token != null && !token.isEmpty()) {
-                        // Save token
-                        TokenManager.saveToken(LoginActivity.this, token);
-                        Log.d("LoginActivity", "Token saved successfully");
+                    if (response.isSuccessful() && response.body() != null) {
+                        LoginResponse result = response.body();
+                        String message = result.getMessage();
+                        String token = result.getToken();
                         
-                        // Show success message
-                        Toast.makeText(LoginActivity.this, 
-                            message != null ? message : "Login successful", 
-                            Toast.LENGTH_SHORT).show();
+                        // Log response details for debugging
+                        Log.d("LoginActivity", "Response message: " + message);
+                        Log.d("LoginActivity", "Token present: " + (token != null && !token.isEmpty()));
+                        
+                        // Check for failure message first
+                        if (message != null && message.toLowerCase().contains("failed")) {
+                            showError(message);
+                            return;
+                        }
+                        
+                        // Process successful login
+                        if (token != null && !token.isEmpty()) {
+                            // Save token
+                            TokenManager.saveToken(LoginActivity.this, token);
+                            Log.d("LoginActivity", "Token saved successfully");
+                            
+                            // Show success message
+                            Toast.makeText(LoginActivity.this, 
+                                message != null ? message : "Login successful", 
+                                Toast.LENGTH_SHORT).show();
 
-                        try {
-                            // Navigate to dashboard
-                            Intent intent = new Intent(LoginActivity.this, DashboardActivity.class);
-                            startActivity(intent);
-                            Log.d("LoginActivity", "Started DashboardActivity");
-                            finish();
-                        } catch (Exception e) {
-                            Log.e("LoginActivity", "Navigation failed", e);
-                            showError("Error navigating to dashboard: " + e.getMessage());
+                            try {
+                                // Navigate to dashboard
+                                Intent intent = new Intent(LoginActivity.this, DashboardActivity.class);
+                                startActivity(intent);
+                                Log.d("LoginActivity", "Started DashboardActivity");
+                                finish();
+                            } catch (Exception e) {
+                                Log.e("LoginActivity", "Navigation failed", e);
+                                showError("Error navigating to dashboard: " + e.getMessage());
+                            }
+                        } else {
+                            // Handle missing token
+                            showError("Login failed: Invalid credentials");
                         }
                     } else {
-                        // Handle missing token
-                        showError("Login failed: Invalid credentials");
-                    }
-                } else {
-                    // Handle unsuccessful response
-                    String errorMessage = "Authentication failed";
-                    if (response.errorBody() != null) {
-                        try {
-                            LoginResponse errorResponse = new Gson().fromJson(
-                                response.errorBody().string(), LoginResponse.class);
-                            if (errorResponse != null && errorResponse.getMessage() != null) {
-                                errorMessage = errorResponse.getMessage();
+                        // Handle unsuccessful response
+                        String errorMessage = "Authentication failed";
+                        if (response.errorBody() != null) {
+                            try {
+                                LoginResponse errorResponse = new Gson().fromJson(
+                                    response.errorBody().string(), LoginResponse.class);
+                                if (errorResponse != null && errorResponse.getMessage() != null) {
+                                    errorMessage = errorResponse.getMessage();
+                                }
+                            } catch (Exception e) {
+                                Log.e("LoginActivity", "Error parsing error response", e);
                             }
-                        } catch (Exception e) {
-                            Log.e("LoginActivity", "Error parsing error response", e);
                         }
+                        showError(errorMessage);
                     }
-                    showError(errorMessage);
-                }
+                });
             }
 
             @Override
             public void onFailure(@NonNull Call<LoginResponse> call, @NonNull Throwable t) {
-                hideProgressDialog();
-                Log.e("LoginActivity", "Network error", t);
-                if (!isNetworkAvailable()) {
-                    showError("No internet connection");
-                } else {
-                    showError("Network error. Please try again.");
-                }
+                runOnUiThread(() -> {
+                    hideProgressDialog();
+                    Log.e("LoginActivity", "Network error", t);
+                    if (!isNetworkAvailable()) {
+                        showError("No internet connection");
+                    } else {
+                        showError("Network error. Please try again.");
+                    }
+                });
             }
         });
     }

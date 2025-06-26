@@ -188,19 +188,30 @@ public class DashboardActivity extends AppCompatActivity implements OnMapReadyCa
         ApiClient.getInstance(this).getService().getParkingLots(token).enqueue(new Callback<List<ParkingLotDetails>>() {
             @Override
             public void onResponse(@NonNull Call<List<ParkingLotDetails>> call, @NonNull Response<List<ParkingLotDetails>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    updateMapWithParking(response.body());
-                } else {
-                    Toast.makeText(DashboardActivity.this, 
-                        "Failed to load parking lots", Toast.LENGTH_SHORT).show();
-                }
+                runOnUiThread(() -> {
+                    Log.d(TAG, "HTTP status: " + response.code());
+                    if (response.isSuccessful() && response.body() != null) {
+                        Log.d(TAG, "Parking lots loaded: " + response.body().size());
+                        updateMapWithParking(response.body());
+                    } else {
+                        String errorBody = null;
+                        try {
+                            errorBody = response.errorBody() != null ? response.errorBody().string() : "null";
+                        } catch (Exception e) {
+                            errorBody = "error reading errorBody: " + e.getMessage();
+                        }
+                        Log.e(TAG, "Response unsuccessful or empty. Error body: " + errorBody);
+                        Toast.makeText(DashboardActivity.this, "Could not load parking lots. Please try again.", Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
 
             @Override
             public void onFailure(@NonNull Call<List<ParkingLotDetails>> call, @NonNull Throwable t) {
-                Log.e(TAG, "Failed to load parking lots: " + t.getMessage());
-                Toast.makeText(DashboardActivity.this,
-                    "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                runOnUiThread(() -> {
+                    Log.e(TAG, "Network error while loading parking lots", t);
+                    Toast.makeText(DashboardActivity.this, "Could not load parking lots. Please check your connection.", Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }
@@ -237,33 +248,37 @@ public class DashboardActivity extends AppCompatActivity implements OnMapReadyCa
         ApiClient.getInstance(this).getService().getParkingLots(token).enqueue(new Callback<List<ParkingLotDetails>>() {
             @Override
             public void onResponse(@NonNull Call<List<ParkingLotDetails>> call, @NonNull Response<List<ParkingLotDetails>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    List<ParkingLotDetails> allLocations = response.body();
-                    List<ParkingLotDetails> nearbyLocations = new ArrayList<>();
-                    
-                    // Filter locations within 5km radius
-                    for (ParkingLotDetails location : allLocations) {
-                        double distance = calculateDistance(
-                            targetLocation.latitude, targetLocation.longitude,
-                            location.getLatitude(), location.getLongitude()
-                        );
-                        if (distance <= 5) { // 5km radius
-                            nearbyLocations.add(location);
+                runOnUiThread(() -> {
+                    if (response.isSuccessful() && response.body() != null) {
+                        List<ParkingLotDetails> allLocations = response.body();
+                        List<ParkingLotDetails> nearbyLocations = new ArrayList<>();
+                        
+                        // Filter locations within 5km radius
+                        for (ParkingLotDetails location : allLocations) {
+                            double distance = calculateDistance(
+                                targetLocation.latitude, targetLocation.longitude,
+                                location.getLatitude(), location.getLongitude()
+                            );
+                            if (distance <= 5) { // 5km radius
+                                nearbyLocations.add(location);
+                            }
                         }
+                        
+                        updateMapWithParking(nearbyLocations);
+                    } else {
+                        Toast.makeText(DashboardActivity.this,
+                            "Failed to fetch parking locations", Toast.LENGTH_SHORT).show();
                     }
-                    
-                    updateMapWithParking(nearbyLocations);
-                } else {
-                    Toast.makeText(DashboardActivity.this,
-                        "Failed to load parking lots", Toast.LENGTH_SHORT).show();
-                }
+                });
             }
 
             @Override
             public void onFailure(@NonNull Call<List<ParkingLotDetails>> call, @NonNull Throwable t) {
-                Log.e(TAG, "Failed to load parking lots: " + t.getMessage());
-                Toast.makeText(DashboardActivity.this,
-                    "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                runOnUiThread(() -> {
+                    Log.e(TAG, "Error fetching parking locations: " + t.getMessage());
+                    Toast.makeText(DashboardActivity.this,
+                        "Network error. Please try again.", Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }
@@ -297,34 +312,18 @@ public class DashboardActivity extends AppCompatActivity implements OnMapReadyCa
         // Add new markers
         for (ParkingLotDetails parking : parkingList) {
             LatLng position = new LatLng(parking.getLatitude(), parking.getLongitude());
-            
-            // Calculate color based on availability
-            double availabilityPercentage = (double) parking.getAvailableSlots() / parking.getTotalSlots() * 100;
-            float markerColor = getMarkerColor(availabilityPercentage);
-
-            // Create marker with custom icon
-            BitmapDescriptor icon = BitmapDescriptorFactory.defaultMarker(markerColor);
-            MarkerOptions markerOptions = new MarkerOptions()
-                .position(position)
-                .title(parking.getParking_name())
-                .snippet(String.format("Available: %d/%d slots", 
-                    parking.getAvailableSlots(), parking.getTotalSlots()))
-                .icon(icon);
-
-            Marker marker = mMap.addMarker(markerOptions);
+            // Use a custom vivid green marker icon
+            BitmapDescriptor icon = BitmapDescriptorFactory.fromResource(R.drawable.ic_marker_green); // Ensure ic_marker_green.png exists in res/drawable
+            String snippet = "Available: " + parking.getAvailableSlots() + "/" + parking.getTotalSlots() + " slots";
+            Marker marker = mMap.addMarker(new MarkerOptions()
+                    .position(position)
+                    .title(parking.getParking_name())
+                    .snippet(snippet)
+                    .icon(icon)
+            );
             if (marker != null) {
                 parkingMarkers.add(marker);
             }
-        }
-    }
-
-    private float getMarkerColor(double availabilityPercentage) {
-        if (availabilityPercentage > 50) {
-            return BitmapDescriptorFactory.HUE_GREEN;  // Plenty of space
-        } else if (availabilityPercentage > 20) {
-            return BitmapDescriptorFactory.HUE_YELLOW; // Getting full
-        } else {
-            return BitmapDescriptorFactory.HUE_RED;    // Almost full
         }
     }
 

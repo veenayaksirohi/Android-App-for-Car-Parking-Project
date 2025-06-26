@@ -74,31 +74,35 @@ public class RegisterActivity extends AppCompatActivity {
             .enqueue(new Callback<RegisterResponse>() {
                 @Override
                 public void onResponse(@NonNull Call<RegisterResponse> call, @NonNull Response<RegisterResponse> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        RegisterResponse result = response.body();
-                        Toast.makeText(RegisterActivity.this, result.getMessage(), Toast.LENGTH_SHORT).show();
-                        // Navigate to Login screen after successful registration
-                        Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
-                        startActivity(intent);
-                        finish();
-                    } else {
-                        String errorMessage = "Registration failed";
-                        if (response.errorBody() != null) {
-                            try {
-                                RegisterResponse errorResponse = new Gson().fromJson(
-                                    response.errorBody().string(), RegisterResponse.class);
-                                errorMessage = errorResponse.getMessage();
-                            } catch (Exception e) {
-                                Log.e("RegisterActivity", "Error parsing error response", e);
+                    runOnUiThread(() -> {
+                        if (response.isSuccessful() && response.body() != null) {
+                            RegisterResponse result = response.body();
+                            Toast.makeText(RegisterActivity.this, result.getMessage(), Toast.LENGTH_SHORT).show();
+                            // Navigate to Login screen after successful registration
+                            Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
+                            startActivity(intent);
+                            finish();
+                        } else {
+                            String errorMessage = "Registration failed";
+                            if (response.errorBody() != null) {
+                                try {
+                                    RegisterResponse errorResponse = new Gson().fromJson(
+                                        response.errorBody().string(), RegisterResponse.class);
+                                    errorMessage = errorResponse.getMessage();
+                                } catch (Exception e) {
+                                    Log.e("RegisterActivity", "Error parsing error response", e);
+                                }
                             }
+                            Toast.makeText(RegisterActivity.this, errorMessage, Toast.LENGTH_LONG).show();
                         }
-                        Toast.makeText(RegisterActivity.this, errorMessage, Toast.LENGTH_LONG).show();
-                    }
+                    });
                 }
 
                 @Override
                 public void onFailure(@NonNull Call<RegisterResponse> call, @NonNull Throwable t) {
-                    Toast.makeText(RegisterActivity.this, "Network Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    runOnUiThread(() -> {
+                        Toast.makeText(RegisterActivity.this, "Network Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
                 }
             });
     }

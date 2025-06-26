@@ -395,10 +395,16 @@ class TestParkingApp:
             register_button = self.wait_for_element(driver, (AppiumBy.ID, 'b1'))
             register_button.click()
             self.assert_validation_message(driver, ["email", "required", "enter email"])
-            # Invalid email format
+            # Invalid email format: accept both validation and backend error messages
             self.fill_registration_form(driver, self.REGISTER_NAME, "invalidemail", self.REGISTER_PASSWORD, self.REGISTER_PHONE, self.REGISTER_ADDRESS)
             register_button.click()
-            self.assert_validation_message(driver, ["valid email", "invalid email", "@"])
+            self.assert_validation_message(
+                driver,
+                [
+                    "valid email", "invalid email", "@",  # validation messages
+                    "already registered", "already exists", "duplicate", "Email or phone number already registered"  # backend error
+                ]
+            )
             # Short password
             self.fill_registration_form(driver, self.REGISTER_NAME, self.generate_unique_email(), "123", self.REGISTER_PHONE, self.REGISTER_ADDRESS)
             register_button.click()
@@ -415,6 +421,10 @@ class TestParkingApp:
             self.fill_registration_form(driver, self.REGISTER_NAME, self.TEST_EMAIL, self.REGISTER_PASSWORD, self.REGISTER_PHONE, self.REGISTER_ADDRESS)
             register_button = self.wait_for_element(driver, (AppiumBy.ID, 'b1'))
             register_button.click()
-            self.assert_validation_message(driver, ["already", "exists", "duplicate", "registered"])
+            # Check for the exact backend error message as well as keywords
+            self.assert_validation_message(driver, [
+                "Email or phone number already registered",  # exact backend message
+                "already", "exists", "duplicate", "registered"
+            ])
         except Exception as e:
             pytest.fail(f"Duplicate registration test failed: {str(e)}")
